@@ -1,0 +1,134 @@
+================================================================================
+  RINGKASAN SELURUH PERUBAHAN & PENAMBAHAN — SCM MBG Platform
+  Tanggal: 11 Juni 2026
+================================================================================
+
+══════════════════════════════════════════════════════════════════════════
+A. PERBAIKAN BUG — AI FALLBACK ERROR (Keuangan)
+══════════════════════════════════════════════════════════════════════════
+
+FILE DIUBAH:
+  1. backend/routes/finance.js
+     - Perbaikan mapping data transaksi sebelum dikirim ke AI.
+     - Sebelumnya: field tanggal, keterangan, nominal = undefined.
+     - Sesudah : field dipetakan dari transaction_date → tanggal,
+                 description → keterangan, amount → nominal.
+
+  2. backend/services/financeAuditor.js  [DITULIS ULANG]
+     - Prompt AI diperketat: hanya menganalisis data yang diberikan.
+     - Fallback BUKAN lagi teks statis "Gagal memproses dengan AI".
+     - BARU: Fungsi smartAnalyzeApproval() — analisis approval
+       berdasarkan nominal, kata kunci deskripsi, dan nama dapur.
+     - BARU: Fungsi smartAnalyzeCashflow() — analisis cashflow
+       berdasarkan rasio pemasukan/pengeluaran, kategori transaksi,
+       dan tren pengeluaran tertinggi.
+
+══════════════════════════════════════════════════════════════════════════
+B. FITUR BARU — AUTENTIKASI JWT & SESSION
+══════════════════════════════════════════════════════════════════════════
+
+FILE BARU:
+  3. backend/middleware/auth.js  [FILE BARU]
+     - Middleware authenticateToken untuk verifikasi JWT.
+     - Jika token expired/invalid → kembalikan 401/403.
+
+FILE DIUBAH:
+  4. backend/routes/auth.js  [DITULIS ULANG]
+     - POST /api/auth/login → cek database, hasilkan JWT (1 jam).
+     - GET /api/auth/me → verifikasi token, kembalikan data user.
+     - Mapping: "admin" → admin@mbg.id, "user" → user@mbg.id.
+
+  5. backend/server.js
+     - Ditambahkan: app.use('/api/auth', authRoutes)
+
+  6. frontend/src/App.tsx
+     - LoginScreen → memanggil API /api/auth/login (bukan hardcode).
+     - Token JWT disimpan di localStorage ('scm_token').
+     - Saat load halaman → cek token ke /api/auth/me.
+     - Jika expired → paksa login ulang.
+     - Demo credentials ditampilkan: admin/admin123 & user/user123.
+
+══════════════════════════════════════════════════════════════════════════
+C. FITUR BARU — AKUN NON-PREMIUM (PEMBATASAN AKSES)
+══════════════════════════════════════════════════════════════════════════
+
+FILE DIUBAH:
+  7. backend/database/seeds/01_initial_data.ts
+     - Ditambahkan akun: "Pengguna Biasa" (user@mbg.id / user123).
+     - Role: "user" (non-premium).
+
+  8. backend/database/migrations/20260611000001_add_user_role_enum.ts  [FILE BARU]
+     - Menambahkan nilai 'user' ke ENUM role di tabel users.
+     - Sebelumnya: ['master_admin','admin_dapur','finance','viewer']
+     - Sesudah  : ['master_admin','admin_dapur','finance','viewer','user']
+
+  9. frontend/src/App.tsx
+     - Jika role = 'user', default menu = 'karyawan' (bukan dashboard).
+     - Menu selain karyawan/keuangan → tampil "Akses Terkunci".
+
+  10. frontend/src/components/Layout.tsx
+      - Prop userRole ditambahkan dan diteruskan ke SidebarMenu.
+
+  11. frontend/src/components/SidebarMenu.tsx
+      - Menu yang terkunci → tampilkan ikon gembok (Lock icon).
+      - Klik menu terkunci → alert "Fitur khusus langganan Premium."
+      - Menu yang bisa diakses user biasa: Keuangan & Kelola Karyawan.
+
+  12. frontend/src/pages/FinancePage.tsx
+      - Prop userRole ditambahkan.
+      - Tab "Cash Flow" disembunyikan untuk user biasa.
+      - Hanya "Approval Dana" yang tampil.
+
+══════════════════════════════════════════════════════════════════════════
+D. FITUR BARU — DASHBOARD KEUANGAN PER DAPUR (REAL-TIME)
+══════════════════════════════════════════════════════════════════════════
+
+FILE DIUBAH:
+  13. backend/routes/finance.js
+      - BARU: GET /api/finance/kitchen-balance
+      - Mengembalikan data keuangan per dapur:
+        • Total pemasukan & pengeluaran (dari cashflow_transactions)
+        • Saldo bersih per dapur
+        • Total gaji bulanan karyawan per dapur
+        • Jumlah karyawan yang sudah/belum digaji bulan ini
+        • Jumlah & nominal approval yang masih pending
+        • Grand total untuk semua dapur
+
+  14. frontend/src/components/MasterDashboard.tsx
+      - BARU: Komponen KitchenFinanceSection
+      - Menampilkan 4 kartu ringkasan di atas:
+        • Saldo Total seluruh dapur
+        • Total Pemasukan
+        • Gaji Belum Dibayar (merah jika ada)
+        • Approval Pending (jumlah & nominal)
+      - Tabel per dapur dengan 9 kolom:
+        Dapur | Kota | Pemasukan | Pengeluaran | Saldo |
+        Gaji/Bulan | Gaji Dibayar | Belum Bayar | Approval Pending
+      - Badge berwarna untuk status:
+        • Hijau: gaji dibayar
+        • Merah: belum bayar + nominal
+        • Kuning: approval pending + nominal
+
+══════════════════════════════════════════════════════════════════════════
+KESIMPULAN
+══════════════════════════════════════════════════════════════════════════
+
+TOTAL FILE DIUBAH : 12 file
+TOTAL FILE BARU   : 2 file (auth middleware, migration enum)
+
+AKUN TERSEDIA:
+  1. admin / admin123 → Master Admin (Premium) — akses SEMUA fitur
+  2. user  / user123  → Pengguna Biasa         — hanya Kelola Karyawan
+                                                  & Approval Keuangan
+
+FITUR UTAMA YANG DITAMBAHKAN:
+  ✅ AI Fallback sekarang berbasis data riil (bukan teks statis)
+  ✅ Session JWT dengan expiry 1 jam (auto-logout jika habis)
+  ✅ Akun non-premium dengan pembatasan akses (gembok di sidebar)
+  ✅ Dashboard keuangan real-time per dapur:
+     - Saldo, pemasukan, pengeluaran
+     - Status penggajian karyawan
+     - Approval pending yang perlu ditindaklanjuti
+     - Grand total lintas seluruh dapur
+
+================================================================================

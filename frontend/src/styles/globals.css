@@ -1,0 +1,2 @@
+/* globals.css — entry point, imports full theme */
+@import './theme.css';

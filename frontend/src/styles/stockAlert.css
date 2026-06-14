@@ -1,0 +1,77 @@
+/* Stock Alert Styles */
+
+.stock-alert-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stock-alert-card h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 16px 0;
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #eaf5ef;
+  border: 1px solid #b9dec8;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.alert-item:hover {
+  background: #dff0e7;
+  border-color: #7ca995;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.alert-quantity {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.alert-badge {
+  background: #FEE2E2;
+  color: #DC2626;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+@media (max-width: 768px) {
+  .alert-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .alert-badge {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+}

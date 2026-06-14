@@ -1,0 +1,31 @@
+{
+  "name": "scm-backend",
+  "version": "1.0.0",
+  "description": "Backend untuk module M6.1 Login & Keamanan Akun",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "migrate:make": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:make",
+    "migrate:latest": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:latest",
+    "migrate:rollback": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:rollback",
+    "migrate:status": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:status",
+    "seed:run": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js seed:run"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.16.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3",
+    "knex": "^3.2.10",
+    "mysql2": "^3.22.3"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.9.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

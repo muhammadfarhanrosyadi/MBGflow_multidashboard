@@ -1,0 +1,243 @@
+/* ====================================================================
+   SCM MBG Master Admin — Task Management Light Theme (Dribbble Style)
+   File: src/styles/theme.css
+   ==================================================================== */
+
+/* ── Google Font ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* ── CSS Variables ───────────────────────────────────────────────── */
+:root {
+  /* Background layers */
+  --bg-base: #ffffff;
+  --bg-primary: #F4F6F9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-overlay: #F4F6F9;
+  --bg-interactive: #EFF1F5;
+  --bg-soft: #F8F9FC;
+
+  /* Borders */
+  --border-default: #E8EBF0;
+  --border-subtle: #EEF0F5;
+  --border-strong: #D0D5DD;
+
+  /* Text */
+  --text-primary: #1A1D23;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --text-inverse: #ffffff;
+
+  /* Accent — Green Brand */
+  --accent-primary: #1B6B45;
+  --accent-primary-dim: rgba(27, 107, 69, 0.10);
+  --accent-primary-glow: rgba(27, 107, 69, 0.18);
+  --accent-secondary: #22A06B;
+  --accent-secondary-dim: rgba(34, 160, 107, 0.12);
+  --accent-active: #145535;
+  --accent-soft: rgba(27, 107, 69, 0.08);
+  --accent-light: #E6F5EE;
+
+  /* Semantic colors */
+  --color-success: #15803D;
+  --color-success-dim: #DCFCE7;
+  --color-warning: #B45309;
+  --color-warning-dim: #FEF3C7;
+  --color-danger: #DC2626;
+  --color-danger-dim: #FEE2E2;
+  --color-info: #2563EB;
+  --color-info-dim: #DBEAFE;
+  --color-purple: #7C3AED;
+  --color-purple-dim: #EDE9FE;
+
+  /* Status colors (semantic aliases) */
+  --success-text: #15803D;
+  --success-soft: #DCFCE7;
+  --warning-text: #B45309;
+  --warning-soft: #FEF3C7;
+  --warning-border: #FDE68A;
+  --danger-text: #DC2626;
+  --danger-soft: #FEE2E2;
+
+  /* Chart palette */
+  --chart-1: #1B6B45;
+  --chart-2: #22A06B;
+  --chart-3: #4ADE80;
+  --chart-4: #86EFAC;
+  --chart-5: #DC2626;
+  --chart-6: #2563EB;
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 140ms ease;
+  --transition-normal: 220ms ease;
+  --transition-slow: 380ms ease;
+
+  /* Sidebar */
+  --sidebar-width: 268px;
+  --sidebar-collapsed-width: 72px;
+
+  /* Shadows — softer, elevation-based */
+  --shadow-xs:  0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-sm:  0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow-md:  0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg:  0 12px 32px rgba(15, 23, 42, 0.10);
+  --shadow-xl:  0 24px 48px rgba(15, 23, 42, 0.12);
+  --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-glow-green: 0 8px 24px rgba(27, 107, 69, 0.20);
+  --shadow-glow-cyan:  0 8px 24px rgba(27, 107, 69, 0.20);
+  --shadow-glow-purple: 0 8px 24px rgba(124, 58, 237, 0.14);
+}
+
+/* ── Reset & Base ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root { min-height: 100vh; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-secondary); }
+
+/* ── Utility Classes ─────────────────────────────────────────────── */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-card);
+}
+.card:hover {
+  border-color: var(--accent-primary-dim);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.badge--success { background: var(--color-success-dim); color: var(--color-success); }
+.badge--warning { background: var(--color-warning-dim); color: var(--color-warning); }
+.badge--danger  { background: var(--color-danger-dim);  color: var(--color-danger);  }
+.badge--info    { background: var(--color-info-dim);    color: var(--color-info);    }
+.badge--accent  { background: var(--accent-primary-dim);color: var(--accent-primary);}
+.badge--purple  { background: var(--color-purple-dim);  color: var(--color-purple);  }
+
+/* ── Loading Spinner ─────────────────────────────────────────────── */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 300px;
+  color: var(--text-secondary);
+}
+
+/* ── Error State ─────────────────────────────────────────────────── */
+.error-state {
+  padding: 2rem;
+  background: var(--color-danger-dim);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-lg);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+/* ── Table Base ──────────────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.data-table thead tr {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border-default);
+}
+.data-table th {
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
+}
+.data-table tbody tr:hover { background: var(--bg-interactive); }
+.data-table td {
+  padding: 0.85rem 1rem;
+  color: var(--text-secondary);
+}
+.data-table td:first-child { color: var(--text-primary); font-weight: 500; }
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(27,107,69,0.15); }
+  50%       { box-shadow: 0 0 20px rgba(27,107,69,0.32); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-up { animation: fadeInUp 0.4s ease both; }
+.animate-fade    { animation: fadeIn  0.3s ease both; }

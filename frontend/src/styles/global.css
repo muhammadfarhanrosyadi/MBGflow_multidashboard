@@ -1,0 +1,39 @@
+/* TEMA UI: Putih dan Hijau untuk SCM */
+
+:root {
+  --bg-main: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --border-color: #E5E7EB;
+  --primary-green: #16A34A;
+  --hover-green: #15803D;
+  --text-main: #1F2937;
+  --text-light: #6B7280;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+
+input {
+  font-family: inherit;
+}
+
+button {
+  font-family: inherit;
+}
