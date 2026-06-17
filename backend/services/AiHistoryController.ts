@@ -1,13 +1,11 @@
 /**
- * AiHistoryController.ts
+ * AiHistoryController.ts — updated for corrected schema
  * ──────────────────────────────────────────────────────────────
- * HTTP layer for Universal AI History endpoints.
- *
- * Endpoints:
- *  GET  /api/ai/history/:module_name            → paginated list
- *  POST /api/ai/history                         → save new prediction
- *  GET  /api/ai/history/export/:module_name     → download XLSX or PDF
- *    query param: ?format=xlsx  (default) | pdf
+ * - module_name now accepts any string (matching frontend IDs)
+ * - kitchen_id optional in saveHistory
+ * - Export columns unified to show the AI result fields
+ *   (kesimpulan, temuanMasalah, analisisAI, solusiStrategis, confidence)
+ *   which are the standard shape from masterAnalyst.js
  * ──────────────────────────────────────────────────────────────
  */
 
@@ -15,74 +13,35 @@ import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 
-import {
-  AiHistoryService,
-  MODULE_NAMES,
-  type ModuleName,
-  type SavePredictionDTO,
-} from './AiHistoryService';
+import { AiHistoryService, MODULE_NAMES } from './AiHistoryService';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isValidModule(value: unknown): value is ModuleName {
-  return MODULE_NAMES.includes(value as ModuleName);
+function isValidModule(v: unknown): boolean {
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
-/** Flatten a prediction_result JSON object into an ordered key=value string for PDF cells. */
-function flattenResult(obj: Record<string, unknown>): string {
-  return Object.entries(obj)
-    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-    .join('\n');
+/** Flatten arrays and objects in prediction_result to readable strings */
+function fmtCell(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return (v as unknown[]).join(' | ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
 }
 
-// ── Column definitions for Excel export (per module) ─────────────────────────
+// ── Standard AI result export columns (matches masterAnalyst output) ──────────
 
-const MODULE_EXCEL_COLUMNS: Record<ModuleName, { header: string; key: string }[]> = {
-  inventory: [
-    { header: 'Kitchen',            key: 'kitchen_name' },
-    { header: 'Prediction Date',    key: 'prediction_date' },
-    { header: 'Stock Level',        key: 'stock_level' },
-    { header: 'Reorder Point',      key: 'reorder_point' },
-    { header: 'Shortage Days',      key: 'predicted_shortage_days' },
-    { header: 'Items at Risk',      key: 'items_at_risk' },
-    { header: 'Recommendations',    key: 'recommendations' },
-  ],
-  production: [
-    { header: 'Kitchen',            key: 'kitchen_name' },
-    { header: 'Prediction Date',    key: 'prediction_date' },
-    { header: 'Predicted Output',   key: 'predicted_output' },
-    { header: 'Efficiency Rate (%)', key: 'efficiency_rate' },
-    { header: 'Waste (kg)',         key: 'waste_kg' },
-    { header: 'Recommendations',   key: 'recommendations' },
-  ],
-  distribution: [
-    { header: 'Kitchen',            key: 'kitchen_name' },
-    { header: 'Prediction Date',    key: 'prediction_date' },
-    { header: 'Delay Risk (%)',     key: 'delay_risk_pct' },
-    { header: 'On-Time Rate (%)',   key: 'on_time_rate' },
-    { header: 'Deliveries',        key: 'delivery_count' },
-    { header: 'Routes at Risk',    key: 'routes_at_risk' },
-    { header: 'Recommendations',   key: 'recommendations' },
-  ],
-  finance: [
-    { header: 'Kitchen',            key: 'kitchen_name' },
-    { header: 'Prediction Date',    key: 'prediction_date' },
-    { header: 'Predicted Revenue',  key: 'predicted_revenue' },
-    { header: 'Cost Variance',      key: 'cost_variance' },
-    { header: 'Cashflow 7d (IDR)',  key: 'cashflow_7d' },
-    { header: 'Budget Utilisation (%)', key: 'budget_utilisation' },
-    { header: 'Alerts',            key: 'alerts' },
-  ],
-  employee: [
-    { header: 'Kitchen',            key: 'kitchen_name' },
-    { header: 'Prediction Date',    key: 'prediction_date' },
-    { header: 'Attendance Rate (%)', key: 'attendance_rate' },
-    { header: 'Overtime Hours',    key: 'overtime_hours' },
-    { header: 'Performance Score', key: 'performance_score' },
-    { header: 'Flagged Employees', key: 'flagged_count' },
-    { header: 'Recommendations',   key: 'recommendations' },
-  ],
-};
+const STANDARD_AI_COLUMNS = [
+  { header: 'Dapur / Konteks',       key: 'kitchen_name'      },
+  { header: 'Modul',                 key: 'module_label'       },
+  { header: 'Tanggal Analisis',      key: 'prediction_date'    },
+  { header: 'Kesimpulan',            key: 'kesimpulan'         },
+  { header: 'Temuan Masalah',        key: 'temuanMasalah'      },
+  { header: 'Analisis AI',           key: 'analisisAI'         },
+  { header: 'Solusi Strategis',      key: 'solusiStrategis'    },
+  { header: 'Confidence Score (%)',  key: 'confidenceScore'    },
+  { header: 'Sumber',                key: 'source'             },
+];
 
 // ── GET /api/ai/history/:module_name ─────────────────────────────────────────
 
@@ -91,10 +50,7 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
     const { module_name } = req.params;
 
     if (!isValidModule(module_name)) {
-      res.status(400).json({
-        success: false,
-        error: `module_name tidak valid. Harus salah satu dari: ${MODULE_NAMES.join(', ')}`,
-      });
+      res.status(400).json({ success: false, error: 'module_name tidak valid.' });
       return;
     }
 
@@ -106,7 +62,7 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
     } = req.query as Record<string, string>;
 
     const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
-    const page   = Math.max(parseInt(pageParam)  || 1, 1);
+    const page   = Math.max(parseInt(pageParam) || 1, 1);
     const offset = (page - 1) * limit;
 
     const [history, total] = await Promise.all([
@@ -122,21 +78,56 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[AiHistoryController] getHistory error:', msg);
     res.status(500).json({ success: false, error: 'Gagal mengambil riwayat AI: ' + msg });
   }
 }
 
-// ── POST /api/ai/history ──────────────────────────────────────────────────────
+// ── GET /api/ai/history (all modules, no filter) ─────────────────────────────
+
+export async function getAllHistory(req: Request, res: Response): Promise<void> {
+  try {
+    const {
+      search,
+      limit: limitParam = '50',
+      page:  pageParam  = '1',
+    } = req.query as Record<string, string>;
+
+    const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
+    const page   = Math.max(parseInt(pageParam) || 1, 1);
+    const offset = (page - 1) * limit;
+
+    const [history, total] = await Promise.all([
+      AiHistoryService.getHistory({ search, limit, offset }),
+      AiHistoryService.countHistory({ search }),
+    ]);
+
+    res.json({
+      success: true,
+      module_name: 'all',
+      data: history,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ success: false, error: 'Gagal mengambil riwayat AI: ' + msg });
+  }
+}
+
+// ── POST /api/ai/history ─────────────────────────────────────────────────────
 
 export async function saveHistory(req: Request, res: Response): Promise<void> {
   try {
-    const body = req.body as Partial<SavePredictionDTO>;
+    const body = req.body as {
+      kitchen_id?: string;
+      module_name?: string;
+      module_label?: string;
+      prediction_date?: string;
+      prediction_result?: Record<string, unknown>;
+    };
 
     const missing: string[] = [];
-    if (!body.kitchen_id)      missing.push('kitchen_id');
-    if (!body.module_name)     missing.push('module_name');
-    if (!body.prediction_date) missing.push('prediction_date');
+    if (!body.module_name)       missing.push('module_name');
+    if (!body.prediction_date)   missing.push('prediction_date');
     if (!body.prediction_result) missing.push('prediction_result');
 
     if (missing.length > 0) {
@@ -144,19 +135,17 @@ export async function saveHistory(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (!isValidModule(body.module_name)) {
-      res.status(400).json({
-        success: false,
-        error: `module_name tidak valid. Pilihan: ${MODULE_NAMES.join(', ')}`,
-      });
-      return;
-    }
+    const record = await AiHistoryService.savePrediction({
+      kitchen_id:        body.kitchen_id ?? null,
+      module_name:       body.module_name!,
+      module_label:      body.module_label ?? null,
+      prediction_date:   body.prediction_date!,
+      prediction_result: body.prediction_result!,
+    });
 
-    const record = await AiHistoryService.savePrediction(body as SavePredictionDTO);
     res.status(201).json({ success: true, message: 'Prediksi disimpan.', data: record });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[AiHistoryController] saveHistory error:', msg);
     res.status(500).json({ success: false, error: 'Gagal menyimpan prediksi: ' + msg });
   }
 }
@@ -178,50 +167,55 @@ export async function exportHistory(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const rows = await AiHistoryService.getAllForExport(module_name);
-    const moduleLabel = module_name.charAt(0).toUpperCase() + module_name.slice(1);
-    const filename    = `AI_History_${moduleLabel}_${new Date().toISOString().slice(0, 10)}`;
+    // Support 'all' as a special module_name to export all modules
+    const rows = module_name === 'all'
+      ? await AiHistoryService.getAllForExport('')   // see note in service
+      : await AiHistoryService.getAllForExport(module_name);
 
-    // ── XLSX Export ───────────────────────────────────────────────────────────
+    const moduleLabel = module_name === 'all' ? 'Semua Modul' :
+      rows[0]?.module_label ?? module_name;
+    const filename = `AI_History_${module_name}_${new Date().toISOString().slice(0, 10)}`;
+
+    // ── XLSX ──────────────────────────────────────────────────────────────────
     if (format === 'xlsx') {
-      const workbook  = new ExcelJS.Workbook();
+      const workbook = new ExcelJS.Workbook();
       workbook.creator = 'SCM MBG Platform';
-      workbook.created  = new Date();
+      workbook.created = new Date();
 
-      const sheet = workbook.addWorksheet(`${moduleLabel} AI History`);
-      const cols  = MODULE_EXCEL_COLUMNS[module_name];
-
-      // ── Header row ────────────────────────────────────────────
-      sheet.columns = cols.map(c => ({ header: c.header, key: c.key, width: 22 }));
+      const sheet = workbook.addWorksheet(`AI History — ${moduleLabel}`);
+      sheet.columns = STANDARD_AI_COLUMNS.map(c => ({
+        header: c.header, key: c.key, width: c.key === 'kesimpulan' || c.key === 'analisisAI' ? 45 : 22,
+      }));
 
       // Style header
-      const headerRow = sheet.getRow(1);
-      headerRow.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-      headerRow.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B6B45' } };
-      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-      headerRow.height    = 28;
+      const hRow = sheet.getRow(1);
+      hRow.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+      hRow.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B6B45' } };
+      hRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      hRow.height    = 30;
 
-      // ── Data rows ─────────────────────────────────────────────
       rows.forEach((r, idx) => {
-        const result = r.prediction_result;
+        const res_data = r.prediction_result as Record<string, unknown>;
         const rowData: Record<string, unknown> = {
           kitchen_name:   r.kitchen_name,
+          module_label:   r.module_label ?? r.module_name,
           prediction_date: r.prediction_date,
-          ...result,
+          kesimpulan:     fmtCell(res_data.kesimpulan),
+          temuanMasalah:  fmtCell(res_data.temuanMasalah),
+          analisisAI:     fmtCell(res_data.analisisAI),
+          solusiStrategis: fmtCell(res_data.solusiStrategis),
+          confidenceScore: res_data.confidenceScore ?? '—',
+          source:         res_data.source ?? '—',
         };
-        const dataRow = sheet.addRow(cols.map(c => {
-          const v = rowData[c.key];
-          return Array.isArray(v) ? (v as unknown[]).join(', ') : v ?? '—';
-        }));
 
-        // Alternating row background
+        const dataRow = sheet.addRow(STANDARD_AI_COLUMNS.map(c => rowData[c.key] ?? '—'));
         if (idx % 2 === 0) {
           dataRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F9' } };
         }
-        dataRow.height = 20;
+        dataRow.alignment = { wrapText: true, vertical: 'top' };
+        dataRow.height = 60;
       });
 
-      // ── Borders on all cells ───────────────────────────────────
       sheet.eachRow(row => {
         row.eachCell(cell => {
           cell.border = {
@@ -235,101 +229,75 @@ export async function exportHistory(req: Request, res: Response): Promise<void> 
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
-
       const buffer = await workbook.xlsx.writeBuffer();
       res.send(buffer);
       return;
     }
 
-    // ── PDF Export ────────────────────────────────────────────────────────────
+    // ── PDF ───────────────────────────────────────────────────────────────────
     const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
     doc.pipe(res);
 
-    // ── Title block ───────────────────────────────────────────────
-    doc
-      .rect(0, 0, doc.page.width, 70)
-      .fill('#1B6B45');
+    // Title block
+    doc.rect(0, 0, doc.page.width, 70).fill('#1B6B45');
+    doc.fillColor('#FFFFFF').fontSize(17).font('Helvetica-Bold')
+      .text(`SCM MBG — Riwayat AI: ${moduleLabel}`, 40, 18);
+    doc.fontSize(9).font('Helvetica')
+      .text(`Digenerate: ${new Date().toLocaleString('id-ID')}   |   Total: ${rows.length} catatan`, 40, 44);
 
-    doc
-      .fillColor('#FFFFFF')
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text(`SCM MBG — AI History: ${moduleLabel}`, 40, 18)
-      .fontSize(10)
-      .font('Helvetica')
-      .text(`Generated: ${new Date().toLocaleString('id-ID')}   |   Total Records: ${rows.length}`, 40, 45);
-
-    doc.moveDown(4);
     doc.fillColor('#1A1D23');
 
-    const cols = MODULE_EXCEL_COLUMNS[module_name];
-    const colW = (doc.page.width - 80) / cols.length;
-    const startX = 40;
-    let   y      = 90;
+    const cols = [
+      { key: 'kitchen_name',   label: 'Dapur',          w: 90  },
+      { key: 'module_label',   label: 'Modul',          w: 80  },
+      { key: 'prediction_date',label: 'Tanggal',        w: 80  },
+      { key: 'kesimpulan',     label: 'Kesimpulan',     w: 180 },
+      { key: 'solusiStrategis',label: 'Solusi',         w: 180 },
+      { key: 'confidenceScore',label: 'Conf.%',         w: 45  },
+    ];
 
-    // ── Table header ───────────────────────────────────────────────
-    doc.rect(startX, y, doc.page.width - 80, 20).fill('#E6F5EE');
-    doc.fillColor('#1B6B45').font('Helvetica-Bold').fontSize(8);
+    let y = 90;
 
-    cols.forEach((c, i) => {
-      doc.text(c.header, startX + i * colW + 4, y + 5, { width: colW - 4, ellipsis: true });
-    });
-    y += 20;
+    // Table header
+    doc.rect(40, y, doc.page.width - 80, 22).fill('#E6F5EE');
+    doc.fillColor('#1B6B45').font('Helvetica-Bold').fontSize(7.5);
+    let x = 40;
+    cols.forEach(c => { doc.text(c.label, x + 3, y + 6, { width: c.w - 4, ellipsis: true }); x += c.w; });
+    y += 22;
 
-    // ── Table rows ─────────────────────────────────────────────────
     rows.forEach((r, idx) => {
-      const result = r.prediction_result;
-      const data: Record<string, unknown> = {
+      const rd = r.prediction_result as Record<string, unknown>;
+      const rowData: Record<string, string> = {
         kitchen_name:    r.kitchen_name,
-        prediction_date: r.prediction_date,
-        ...result,
+        module_label:    String(r.module_label ?? r.module_name),
+        prediction_date: r.prediction_date.slice(0, 16),
+        kesimpulan:      fmtCell(rd.kesimpulan).slice(0, 200),
+        solusiStrategis: fmtCell(rd.solusiStrategis).slice(0, 200),
+        confidenceScore: String(rd.confidenceScore ?? '—'),
       };
 
-      const rowHeight = 30;
+      const rowH = 50;
+      if (idx % 2 === 0) doc.rect(40, y, doc.page.width - 80, rowH).fill('#F8F9FC');
 
-      // Alternating background
-      if (idx % 2 === 0) {
-        doc.rect(startX, y, doc.page.width - 80, rowHeight).fill('#F8F9FC');
-      }
-
-      doc.fillColor('#6B7280').font('Helvetica').fontSize(7.5);
-
-      cols.forEach((c, i) => {
-        const v = data[c.key];
-        const text = Array.isArray(v) ? (v as unknown[]).join(', ') : String(v ?? '—');
-        doc.text(text, startX + i * colW + 4, y + 4, {
-          width: colW - 8,
-          height: rowHeight - 4,
-          ellipsis: true,
-        });
+      doc.fillColor('#6B7280').font('Helvetica').fontSize(7);
+      x = 40;
+      cols.forEach(c => {
+        doc.text(rowData[c.key] ?? '—', x + 3, y + 4, { width: c.w - 6, height: rowH - 6, ellipsis: true });
+        x += c.w;
       });
 
-      // Row bottom border
-      doc
-        .moveTo(startX, y + rowHeight)
-        .lineTo(startX + (doc.page.width - 80), y + rowHeight)
-        .strokeColor('#E8EBF0')
-        .lineWidth(0.5)
-        .stroke();
+      doc.moveTo(40, y + rowH).lineTo(40 + (doc.page.width - 80), y + rowH)
+        .strokeColor('#E8EBF0').lineWidth(0.5).stroke();
+      y += rowH;
 
-      y += rowHeight;
-
-      // Page break if needed
-      if (y > doc.page.height - 60) {
-        doc.addPage({ layout: 'landscape' });
-        y = 40;
-      }
+      if (y > doc.page.height - 60) { doc.addPage({ layout: 'landscape' }); y = 40; }
     });
 
     doc.end();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[AiHistoryController] exportHistory error:', msg);
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: 'Gagal mengekspor data: ' + msg });
-    }
+    if (!res.headersSent) res.status(500).json({ success: false, error: 'Gagal mengekspor: ' + msg });
   }
 }

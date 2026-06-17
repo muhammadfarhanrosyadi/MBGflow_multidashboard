@@ -1,16 +1,10 @@
 /**
- * AiHistoryService.ts
+ * AiHistoryService.ts — updated for corrected schema
  * ──────────────────────────────────────────────────────────────
- * Data-access layer for the `universal_ai_histories` table.
- *
- * The JSON `prediction_result` column stores module-specific
- * payloads.  Example shapes per module:
- *
- *  inventory   : { stock_level, reorder_point, predicted_shortage_days, items_at_risk, recommendations }
- *  production  : { predicted_output, efficiency_rate, waste_kg, target_vs_actual, recommendations }
- *  distribution: { delay_risk_pct, on_time_rate, delivery_count, routes_at_risk, recommendations }
- *  finance     : { predicted_revenue, cost_variance, cashflow_7d, budget_utilisation, alerts }
- *  employee    : { attendance_rate, overtime_hours, performance_score, flagged_count, recommendations }
+ * Now supports:
+ *  - module_name as VARCHAR(50) — any moduleName from the system
+ *  - kitchen_id nullable — global/multi-kitchen analyses allowed
+ *  - module_label stored alongside module_name
  * ──────────────────────────────────────────────────────────────
  */
 
@@ -23,40 +17,43 @@ const db = require('../db') as import('knex').Knex;
 
 const TABLE = 'universal_ai_histories';
 
+/** All valid module_name values — matches the frontend moduleName identifiers */
 export const MODULE_NAMES = [
-  'inventory',
-  'production',
-  'distribution',
-  'finance',
-  'employee',
+  'dashboard',
+  'produksi',
+  'bahan-baku',
+  'menu-planning',
+  'logistik',
+  'tracking',
+  'keuangan',
+  'karyawan',
 ] as const;
 
 export type ModuleName = typeof MODULE_NAMES[number];
 
 // ── Domain Types ──────────────────────────────────────────────────────────────
 
-/** A fully-hydrated row as returned from the database. */
 export interface UniversalAiHistory {
   id: string;
-  kitchen_id: string;
-  kitchen_name: string;          // joined from kitchens
-  module_name: ModuleName;
-  prediction_date: string;       // ISO datetime string
-  prediction_result: Record<string, unknown>; // dynamic JSON payload
+  kitchen_id: string | null;
+  kitchen_name: string;
+  module_name: string;
+  module_label: string | null;
+  prediction_date: string;
+  prediction_result: Record<string, unknown>;
   created_at: string;
 }
 
-/** DTO for creating a new prediction record. */
 export interface SavePredictionDTO {
-  kitchen_id: string;
-  module_name: ModuleName;
-  prediction_date: string;       // ISO datetime 'YYYY-MM-DD HH:mm:ss'
+  kitchen_id?: string | null;
+  module_name: string;
+  module_label?: string | null;
+  prediction_date: string;
   prediction_result: Record<string, unknown>;
 }
 
-/** Options for fetching history. */
 export interface FetchHistoryOptions {
-  module_name?: ModuleName;
+  module_name?: string;
   kitchen_id?: string;
   search?: string;
   limit?: number;
@@ -66,21 +63,17 @@ export interface FetchHistoryOptions {
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export class AiHistoryService {
-  /**
-   * Persist a new AI prediction row.
-   * The `prediction_result` object is serialised as JSON automatically
-   * by mysql2 when stored in a JSON column.
-   */
   static async savePrediction(dto: SavePredictionDTO): Promise<UniversalAiHistory> {
     const id  = uuidv4();
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     await db(TABLE).insert({
       id,
-      kitchen_id:        dto.kitchen_id,
+      kitchen_id:        dto.kitchen_id ?? null,
       module_name:       dto.module_name,
+      module_label:      dto.module_label ?? null,
       prediction_date:   dto.prediction_date,
-      prediction_result: JSON.stringify(dto.prediction_result), // explicit stringify for safety
+      prediction_result: JSON.stringify(dto.prediction_result),
       created_at:        now,
     });
 
@@ -88,15 +81,6 @@ export class AiHistoryService {
     return AiHistoryService._parseRow(row);
   }
 
-  /**
-   * Retrieve history ordered by prediction_date DESC.
-   * Supports optional module_name + full-text keyword search.
-   *
-   * The search term is applied against:
-   *   – kitchen_id / kitchen name
-   *   – prediction_date
-   *   – the raw JSON text of prediction_result (via CAST … AS CHAR)
-   */
   static async getHistory(opts: FetchHistoryOptions = {}): Promise<UniversalAiHistory[]> {
     const { module_name, kitchen_id, search, limit = 100, offset = 0 } = opts;
 
@@ -105,32 +89,27 @@ export class AiHistoryService {
         `${TABLE}.id`,
         `${TABLE}.kitchen_id`,
         `${TABLE}.module_name`,
+        `${TABLE}.module_label`,
         `${TABLE}.prediction_date`,
         `${TABLE}.prediction_result`,
         `${TABLE}.created_at`,
-        db.raw(`COALESCE(kitchens.name, ${TABLE}.kitchen_id) AS kitchen_name`),
+        db.raw(`COALESCE(kitchens.name, ${TABLE}.kitchen_id, 'Global / Semua Dapur') AS kitchen_name`),
       )
       .leftJoin('kitchens', `${TABLE}.kitchen_id`, 'kitchens.id')
-      .orderBy(`${TABLE}.prediction_date`, 'desc')
       .orderBy(`${TABLE}.created_at`, 'desc')
       .limit(limit)
       .offset(offset);
 
-    if (module_name) {
-      query = query.where(`${TABLE}.module_name`, module_name);
-    }
-
-    if (kitchen_id) {
-      query = query.where(`${TABLE}.kitchen_id`, kitchen_id);
-    }
+    if (module_name) query = query.where(`${TABLE}.module_name`, module_name);
+    if (kitchen_id)  query = query.where(`${TABLE}.kitchen_id`, kitchen_id);
 
     if (search && search.trim()) {
       const kw = `%${search.trim()}%`;
-      query = query.where((b) => {
-        b.whereLike(`${TABLE}.kitchen_id`, kw)
+      query = query.where((b: import('knex').Knex.QueryBuilder) => {
+        b.orWhereLike(`${TABLE}.module_name`,  kw)
+          .orWhereLike(`${TABLE}.module_label`, kw)
           .orWhereLike(`${TABLE}.prediction_date`, kw)
           .orWhereLike('kitchens.name', kw)
-          // Search inside the JSON column by casting to text
           .orWhereRaw(`CAST(${TABLE}.prediction_result AS CHAR) LIKE ?`, [kw]);
       });
     }
@@ -139,7 +118,6 @@ export class AiHistoryService {
     return rows.map(AiHistoryService._parseRow);
   }
 
-  /** Total count — same filters as getHistory (no limit/offset). */
   static async countHistory(opts: Omit<FetchHistoryOptions, 'limit' | 'offset'> = {}): Promise<number> {
     const { module_name, kitchen_id, search } = opts;
 
@@ -153,7 +131,8 @@ export class AiHistoryService {
     if (search && search.trim()) {
       const kw = `%${search.trim()}%`;
       query = query.where((b: import('knex').Knex.QueryBuilder) => {
-        b.whereLike(`${TABLE}.kitchen_id`, kw)
+        b.orWhereLike(`${TABLE}.module_name`,  kw)
+          .orWhereLike(`${TABLE}.module_label`, kw)
           .orWhereLike(`${TABLE}.prediction_date`, kw)
           .orWhereLike('kitchens.name', kw)
           .orWhereRaw(`CAST(${TABLE}.prediction_result AS CHAR) LIKE ?`, [kw]);
@@ -164,31 +143,31 @@ export class AiHistoryService {
     return Number(total);
   }
 
-  /** Raw rows for export (no pagination). */
-  static async getAllForExport(module_name: ModuleName): Promise<UniversalAiHistory[]> {
-    const rows = await db(TABLE)
+  static async getAllForExport(module_name: string): Promise<UniversalAiHistory[]> {
+    let query = db(TABLE)
       .select(
         `${TABLE}.id`,
         `${TABLE}.kitchen_id`,
         `${TABLE}.module_name`,
+        `${TABLE}.module_label`,
         `${TABLE}.prediction_date`,
         `${TABLE}.prediction_result`,
         `${TABLE}.created_at`,
-        db.raw(`COALESCE(kitchens.name, ${TABLE}.kitchen_id) AS kitchen_name`),
+        db.raw(`COALESCE(kitchens.name, ${TABLE}.kitchen_id, 'Global / Semua Dapur') AS kitchen_name`),
       )
       .leftJoin('kitchens', `${TABLE}.kitchen_id`, 'kitchens.id')
-      .where(`${TABLE}.module_name`, module_name)
-      .orderBy(`${TABLE}.prediction_date`, 'desc');
+      .orderBy(`${TABLE}.created_at`, 'desc');
 
+    // Empty string or 'all' → no filter, return everything
+    if (module_name && module_name !== 'all') {
+      query = query.where(`${TABLE}.module_name`, module_name);
+    }
+
+    const rows = await query;
     return rows.map(AiHistoryService._parseRow);
   }
 
-  // ── Private helper ─────────────────────────────────────────────────────────
 
-  /**
-   * mysql2 may return the JSON column as a string OR as a parsed object
-   * depending on driver configuration — normalise both cases.
-   */
   private static _parseRow(row: Record<string, unknown>): UniversalAiHistory {
     const result = row.prediction_result;
     return {
