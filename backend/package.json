@@ -4,8 +4,8 @@
   "description": "Backend untuk module M6.1 Login & Keamanan Akun",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node -r ts-node/register server.js",
+    "dev":   "node -r ts-node/register server.js",
     "migrate:make": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:make",
     "migrate:latest": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:latest",
     "migrate:rollback": "node -r ts-node/register node_modules/knex/bin/cli.js --knexfile knexfile.js migrate:rollback",

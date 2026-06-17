@@ -1,5 +1,10 @@
+// Register ts-node so that TypeScript files (.ts) can be require()'d directly
+// without a separate build step. Must be the FIRST line before any other import.
+require('ts-node').register({ transpileOnly: true, esm: false });
+
 const express = require('express');
 const cors = require('cors');
+
 const aiRoutes        = require('./routes/ai');
 const financeRoutes   = require('./routes/finance');
 const employeeRoutes  = require('./routes/employees');
