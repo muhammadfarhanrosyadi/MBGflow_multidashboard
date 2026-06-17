@@ -780,6 +780,28 @@ body {
   }
 }
 
+/* iPad Portrait (768px) — finance cards 2-col, KPI 2-col */
+@media (max-width: 768px) {
+  .bento-kpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bento-main {
+    grid-template-columns: 1fr;
+  }
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Finance summary value text — prevent overflow */
+  .bento-card div[style*="font-size: 20px"],
+  .bento-card div[style*="font-size: 18px"] {
+    font-size: 15px !important;
+  }
+  /* Content padding tighter on tablet */
+  .content-wrap {
+    padding: 16px 14px;
+  }
+}
+
 @media (max-width: 920px) {
   .main-layout {
     grid-template-columns: 1fr;
@@ -800,9 +822,19 @@ body {
 
 @media (max-width: 640px) {
   .content-wrap {
-    padding: 14px;
+    padding: 12px;
   }
   .bento-kpi {
     grid-template-columns: 1fr;
+  }
+  /* Finance value text single col */
+  .bento-card {
+    padding: 14px !important;
+  }
+  .kpi-value {
+    font-size: 24px;
+  }
+  .section-title {
+    font-size: 13.5px;
   }
 }

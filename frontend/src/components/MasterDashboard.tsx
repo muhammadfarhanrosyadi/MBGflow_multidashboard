@@ -213,8 +213,12 @@ const KitchenFinanceSection: React.FC = () => {
 
   return (
     <>
-      {/* Grand Total Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      {/* Grand Total Cards — responsive: 4→2→1 cols */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 14,
+      }}>
         <div className="bento-card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ background: 'var(--accent-light)', color: 'var(--accent-primary)', padding: 10, borderRadius: 'var(--radius-md)', display: 'flex' }}>
             <Wallet size={22} />
@@ -265,16 +269,16 @@ const KitchenFinanceSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Per Kitchen Table */}
-      <section className="bento-card">
+      {/* Per Kitchen Table — scrollable on small screens */}
+      <section className="bento-card" style={{ overflowX: 'auto' }}>
         <div className="section-header">
           <div>
             <div className="section-title">💰 Keuangan Per Dapur</div>
             <div className="section-subtitle">Saldo, penggajian, dan approval tiap dapur — data real-time</div>
           </div>
         </div>
-        <div className="module-table-wrap">
-          <table className="module-table">
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="module-table" style={{ minWidth: 750 }}>
             <thead>
               <tr>
                 <th>Dapur</th>

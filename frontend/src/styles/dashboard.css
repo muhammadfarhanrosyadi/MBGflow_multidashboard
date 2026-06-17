@@ -114,7 +114,35 @@
   gap: 24px;
 }
 
-/* Responsive Design */
+/* ── Finance Section ─────────────────────────────────────────────────── */
+
+/* Finance summary cards — responsive via auto-fit already in JSX.
+   Add explicit two-column breakpoint for iPad portrait (768–1024px). */
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+/* Ensure finance bento-card text doesn't overflow on small screens */
+.bento-card .section-title,
+.bento-card .section-subtitle {
+  word-break: break-word;
+}
+
+/* Finance per-kitchen table: always scrollable */
+.finance-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.finance-table-scroll table {
+  min-width: 720px;
+}
+
+/* ── Responsive Design ────────────────────────────────────────────────── */
+
+/* iPad Landscape / Small Laptop (≤1024px) */
 @media (max-width: 1024px) {
   .main-grid {
     grid-template-columns: 1fr;
@@ -149,12 +177,52 @@
   .dashboard-content {
     padding: 16px;
   }
+
+  /* Finance section bento-card inner content gets smaller padding */
+  .bento-card {
+    padding: 14px !important;
+  }
 }
 
-@media (max-width: 640px) {
+/* iPad Portrait / Large Phone (≤768px) */
+@media (max-width: 768px) {
+  /* Finance summary: force 2 columns on iPad portrait */
+  .finance-summary-grid,
+  div[style*="auto-fit"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* bento KPI grid to 2 columns */
+  .bento-kpi {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Two-column bento-main to single */
+  .bento-main {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Mobile Phone (≤560px) */
+@media (max-width: 560px) {
   .stats-section {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  /* Finance summary: single column on phone */
+  .finance-summary-grid,
+  div[style*="auto-fit"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* KPI cards single column */
+  .bento-kpi {
+    grid-template-columns: 1fr !important;
   }
 
   .header-content {
@@ -194,3 +262,4 @@
     min-height: 300px;
   }
 }
+

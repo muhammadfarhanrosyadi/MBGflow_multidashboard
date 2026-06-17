@@ -235,69 +235,120 @@ export async function exportHistory(req: Request, res: Response): Promise<void> 
     }
 
     // ── PDF ───────────────────────────────────────────────────────────────────
+    // IMPORTANT: we generate the PDF into an in-memory buffer first,
+    // then send it in one shot.  Piping directly to `res` causes "Failed to
+    // fetch" on the client when any render call throws, because Express has
+    // already started the HTTP response before we can send an error JSON body.
+    const { PassThrough } = require('stream') as typeof import('stream');
+
     const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
-    doc.pipe(res);
 
-    // Title block
-    doc.rect(0, 0, doc.page.width, 70).fill('#1B6B45');
-    doc.fillColor('#FFFFFF').fontSize(17).font('Helvetica-Bold')
-      .text(`SCM MBG — Riwayat AI: ${moduleLabel}`, 40, 18);
-    doc.fontSize(9).font('Helvetica')
-      .text(`Digenerate: ${new Date().toLocaleString('id-ID')}   |   Total: ${rows.length} catatan`, 40, 44);
+    // Collect chunks from the PDF stream
+    const pdfBuffer: Buffer = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const passThrough = new PassThrough();
 
-    doc.fillColor('#1A1D23');
+      doc.pipe(passThrough);
 
-    const cols = [
-      { key: 'kitchen_name',   label: 'Dapur',          w: 90  },
-      { key: 'module_label',   label: 'Modul',          w: 80  },
-      { key: 'prediction_date',label: 'Tanggal',        w: 80  },
-      { key: 'kesimpulan',     label: 'Kesimpulan',     w: 180 },
-      { key: 'solusiStrategis',label: 'Solusi',         w: 180 },
-      { key: 'confidenceScore',label: 'Conf.%',         w: 45  },
-    ];
+      passThrough.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+      passThrough.on('end',  () => resolve(Buffer.concat(chunks)));
+      passThrough.on('error', reject);
 
-    let y = 90;
+      try {
+        // ── Title block ───────────────────────────────────────────────
+        doc.rect(0, 0, doc.page.width, 70).fill('#1B6B45');
+        doc.fillColor('#FFFFFF').fontSize(16).font('Helvetica-Bold')
+          .text(`SCM MBG — Riwayat AI: ${moduleLabel}`, 40, 18);
+        doc.fontSize(8.5).font('Helvetica')
+          .text(`Digenerate: ${new Date().toLocaleString('id-ID')}   |   Total: ${rows.length} catatan`, 40, 44);
 
-    // Table header
-    doc.rect(40, y, doc.page.width - 80, 22).fill('#E6F5EE');
-    doc.fillColor('#1B6B45').font('Helvetica-Bold').fontSize(7.5);
-    let x = 40;
-    cols.forEach(c => { doc.text(c.label, x + 3, y + 6, { width: c.w - 4, ellipsis: true }); x += c.w; });
-    y += 22;
+        doc.fillColor('#1A1D23');
 
-    rows.forEach((r, idx) => {
-      const rd = r.prediction_result as Record<string, unknown>;
-      const rowData: Record<string, string> = {
-        kitchen_name:    r.kitchen_name,
-        module_label:    String(r.module_label ?? r.module_name),
-        prediction_date: r.prediction_date.slice(0, 16),
-        kesimpulan:      fmtCell(rd.kesimpulan).slice(0, 200),
-        solusiStrategis: fmtCell(rd.solusiStrategis).slice(0, 200),
-        confidenceScore: String(rd.confidenceScore ?? '—'),
-      };
+        const cols = [
+          { key: 'kitchen_name',    label: 'Dapur',        w: 90  },
+          { key: 'module_label',    label: 'Modul',        w: 85  },
+          { key: 'prediction_date', label: 'Tanggal',      w: 80  },
+          { key: 'kesimpulan',      label: 'Kesimpulan',   w: 175 },
+          { key: 'solusiStrategis', label: 'Solusi',       w: 175 },
+          { key: 'confidenceScore', label: 'Conf.%',       w: 50  },
+        ];
 
-      const rowH = 50;
-      if (idx % 2 === 0) doc.rect(40, y, doc.page.width - 80, rowH).fill('#F8F9FC');
+        let y = 90;
 
-      doc.fillColor('#6B7280').font('Helvetica').fontSize(7);
-      x = 40;
-      cols.forEach(c => {
-        doc.text(rowData[c.key] ?? '—', x + 3, y + 4, { width: c.w - 6, height: rowH - 6, ellipsis: true });
-        x += c.w;
-      });
+        // ── Table header ──────────────────────────────────────────────
+        doc.rect(40, y, doc.page.width - 80, 22).fill('#E6F5EE');
+        doc.fillColor('#1B6B45').font('Helvetica-Bold').fontSize(7.5);
+        let x = 40;
+        cols.forEach(c => {
+          doc.text(c.label, x + 3, y + 6, { width: c.w - 4, ellipsis: true });
+          x += c.w;
+        });
+        y += 22;
 
-      doc.moveTo(40, y + rowH).lineTo(40 + (doc.page.width - 80), y + rowH)
-        .strokeColor('#E8EBF0').lineWidth(0.5).stroke();
-      y += rowH;
+        if (rows.length === 0) {
+          // Empty state
+          doc.fillColor('#9CA3AF').font('Helvetica').fontSize(11)
+            .text('Belum ada data analisis untuk diekspor.', 40, y + 30, { align: 'center' });
+        }
 
-      if (y > doc.page.height - 60) { doc.addPage({ layout: 'landscape' }); y = 40; }
+        // ── Data rows ─────────────────────────────────────────────────
+        rows.forEach((r, idx) => {
+          const rd = r.prediction_result as Record<string, unknown>;
+          const rowData: Record<string, string> = {
+            kitchen_name:    r.kitchen_name ?? 'Global',
+            module_label:    String(r.module_label ?? r.module_name),
+            prediction_date: String(r.prediction_date ?? '').slice(0, 16),
+            kesimpulan:      fmtCell(rd.kesimpulan).slice(0, 220),
+            solusiStrategis: fmtCell(rd.solusiStrategis).slice(0, 220),
+            confidenceScore: String(rd.confidenceScore ?? '—'),
+          };
+
+          const rowH = 52;
+          if (idx % 2 === 0) {
+            doc.rect(40, y, doc.page.width - 80, rowH).fill('#F8F9FC');
+          }
+
+          doc.fillColor('#374151').font('Helvetica').fontSize(7);
+          x = 40;
+          cols.forEach(c => {
+            doc.text(rowData[c.key] ?? '—', x + 3, y + 5, {
+              width: c.w - 6,
+              height: rowH - 8,
+              ellipsis: true,
+            });
+            x += c.w;
+          });
+
+          doc.moveTo(40, y + rowH)
+            .lineTo(40 + (doc.page.width - 80), y + rowH)
+            .strokeColor('#E5E7EB').lineWidth(0.5).stroke();
+
+          y += rowH;
+
+          if (y > doc.page.height - 70) {
+            doc.addPage({ size: 'A4', layout: 'landscape' });
+            y = 40;
+          }
+        });
+
+        doc.end();   // finalize — triggers 'end' on passThrough
+      } catch (genErr) {
+        reject(genErr);
+      }
     });
 
-    doc.end();
+    // All good — send the buffer
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+    res.setHeader('Content-Length', String(pdfBuffer.length));
+    res.send(pdfBuffer);
+
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (!res.headersSent) res.status(500).json({ success: false, error: 'Gagal mengekspor: ' + msg });
+    console.error('[AiHistoryController] exportHistory PDF error:', msg);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Gagal mengekspor PDF: ' + msg });
+    }
   }
 }
+
