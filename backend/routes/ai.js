@@ -3,6 +3,14 @@ const router = express.Router();
 const { generateStockPrediction } = require('../services/aiPrediction');
 const { analyzeModuleData } = require('../services/masterAnalyst');
 
+// ── Import TypeScript AI Prediction controller ────────────────────────────────
+// ts-node/register is applied globally in server startup (via NODE_OPTIONS or
+// the existing npm start script). This require() will transpile the TS on-demand.
+const {
+  getPredictionHistory,
+  createPrediction,
+} = require('../services/AiPredictionController');
+
 // ── GET /api/ai/predict-stock ─────────────────────────────────────────────────
 router.get('/predict-stock', (req, res) => {
   try {
@@ -47,5 +55,15 @@ router.post('/analyze', async (req, res) => {
     res.status(500).json({ success: false, error: 'Gagal memproses analisis AI: ' + error.message });
   }
 });
+
+// ── GET /api/ai/predictions/history ──────────────────────────────────────────
+// Query params: kitchen_id?, search?, limit?, page?
+// Returns: paginated AI prediction history ordered by date DESC
+router.get('/predictions/history', getPredictionHistory);
+
+// ── POST /api/ai/predictions ──────────────────────────────────────────────────
+// Body: { kitchen_id, prediction_date, predicted_waste_kg, suggested_portion_adjustment?, ... }
+// Creates and persists a new AI prediction record
+router.post('/predictions', createPrediction);
 
 module.exports = router;

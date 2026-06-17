@@ -8,7 +8,7 @@ import {
   MapPinned,
   Wallet,
   UsersRound,
-
+  Sparkles,
   LogOut,
   Zap,
   Lock,
@@ -33,10 +33,10 @@ const MENU_ITEMS: Array<MenuItem & { icon: React.ReactNode }> = [
   { id: 'bahan-baku',    label: 'Bahan Baku & Pemasok',    icon: <Package size={17} /> },
   { id: 'menu-planning', label: 'Menu Planning & AI',      icon: <Bot size={17} /> },
   { id: 'logistik',      label: 'Logistik & Distribusi',   icon: <Truck size={17} /> },
-  { id: 'tracking',      label: 'Mobile Tracking',         icon: <MapPinned size={17} /> },
-  { id: 'keuangan',      label: 'Keuangan',                icon: <Wallet size={17} />,     section: 'Manajemen' },
-  { id: 'karyawan',      label: 'Kelola Karyawan',         icon: <UsersRound size={17} />,  section: 'Manajemen' },
-
+  { id: 'tracking',      label: 'Mobile Tracking',         icon: <MapPinned size={17} />,    },
+  { id: 'keuangan',      label: 'Keuangan',                icon: <Wallet size={17} />,       section: 'Manajemen' },
+  { id: 'karyawan',      label: 'Kelola Karyawan',         icon: <UsersRound size={17} />,   section: 'Manajemen' },
+  { id: 'ai-prediction', label: 'Prediksi AI',             icon: <Sparkles size={17} />,     section: 'AI & Analytics' },
 ];
 
 const SidebarMenu: React.FC<SidebarMenuProps> = ({ activeMenu, onMenuChange, onLogout, userRole }) => {
@@ -57,7 +57,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({ activeMenu, onMenuChange, onL
         {MENU_ITEMS.map((item, idx) => {
           const prevSection = idx > 0 ? MENU_ITEMS[idx - 1].section : undefined;
           const showSection = item.section && item.section !== prevSection;
-          const isRestricted = userRole === 'user' && !['karyawan', 'keuangan'].includes(item.id);
+          const isRestricted = userRole === 'user' && !['karyawan', 'keuangan', 'ai-prediction'].includes(item.id);
 
           return (
             <React.Fragment key={item.id}>

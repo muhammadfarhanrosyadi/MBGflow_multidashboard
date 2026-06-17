@@ -5,6 +5,7 @@ import MasterDashboard from './components/MasterDashboard';
 import ModulePage from './components/ModulePage';
 import FinancePage from './pages/FinancePage';
 import EmployeePage from './pages/EmployeePage';
+import AiPredictionHistoryPage from './pages/AiPredictionHistoryPage';
 
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 
@@ -382,7 +383,7 @@ export default function App() {
 
   // Render active page content
   const renderPage = () => {
-    if (userRole === 'user' && !['karyawan', 'keuangan'].includes(activeMenu)) {
+    if (userRole === 'user' && !['karyawan', 'keuangan', 'ai-prediction'].includes(activeMenu)) {
       return (
         <div style={{ padding: 40, textAlign: 'center' }}>
           <h2>Akses Terkunci</h2>
@@ -391,9 +392,10 @@ export default function App() {
       );
     }
 
-    if (activeMenu === 'dashboard') return <MasterDashboard />;
-    if (activeMenu === 'keuangan')  return <FinancePage userRole={userRole} />;
-    if (activeMenu === 'karyawan')  return <EmployeePage />;
+    if (activeMenu === 'dashboard')       return <MasterDashboard />;
+    if (activeMenu === 'keuangan')         return <FinancePage userRole={userRole} />;
+    if (activeMenu === 'karyawan')         return <EmployeePage />;
+    if (activeMenu === 'ai-prediction')    return <AiPredictionHistoryPage />;
 
 
     const mod = MODULE_CONFIG[activeMenu];

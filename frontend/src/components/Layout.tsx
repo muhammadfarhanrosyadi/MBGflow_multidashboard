@@ -12,14 +12,15 @@ interface LayoutProps {
 }
 
 const MENU_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard SCM' },
-  { id: 'produksi', label: 'Produksi & Multi Dapur' },
-  { id: 'bahan-baku', label: 'Bahan Baku & Pemasok' },
-  { id: 'menu-planning', label: 'Menu Planning & AI' },
-  { id: 'logistik', label: 'Logistik & Distribusi' },
-  { id: 'tracking', label: 'Mobile Tracking' },
-  { id: 'keuangan', label: 'Keuangan' },
-  { id: 'karyawan', label: 'Kelola Karyawan' },
+  { id: 'dashboard',      label: 'Dashboard SCM' },
+  { id: 'produksi',       label: 'Produksi & Multi Dapur' },
+  { id: 'bahan-baku',     label: 'Bahan Baku & Pemasok' },
+  { id: 'menu-planning',  label: 'Menu Planning & AI' },
+  { id: 'logistik',       label: 'Logistik & Distribusi' },
+  { id: 'tracking',       label: 'Mobile Tracking' },
+  { id: 'keuangan',       label: 'Keuangan' },
+  { id: 'karyawan',       label: 'Kelola Karyawan' },
+  { id: 'ai-prediction',  label: 'Riwayat Prediksi AI' },
 ];
 
 const Layout: React.FC<LayoutProps> = ({ children, activeMenu, onMenuChange, onLogout, adminName, userRole }) => {
