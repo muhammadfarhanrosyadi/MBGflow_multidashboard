@@ -5,17 +5,17 @@ import MasterDashboard from './components/MasterDashboard';
 import ModulePage from './components/ModulePage';
 import FinancePage from './pages/FinancePage';
 import EmployeePage from './pages/EmployeePage';
-import AiPredictionHistoryPage from './pages/AiPredictionHistoryPage';
+import UniversalAiHistoryPage from './pages/UniversalAiHistoryPage';
 
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 
 // ── Module routing config ─────────────────────────────────────────────
 const MODULE_CONFIG: Record<string, { label: string; icon: string; apiKey: string }> = {
-  produksi:       { label: 'Produksi & Multi Dapur',       icon: '🍳', apiKey: 'produksi'      },
-  'bahan-baku':   { label: 'Bahan Baku & Pemasok',         icon: '📦', apiKey: 'bahan-baku'    },
-  'menu-planning':{ label: 'Menu Planning & AI',           icon: '🤖', apiKey: 'menu-planning' },
-  logistik:       { label: 'Logistik & Distribusi',         icon: '🚚', apiKey: 'logistik'      },
-  tracking:       { label: 'Mobile Distribution Tracking', icon: '📍', apiKey: 'tracking'      },
+  produksi: { label: 'Produksi & Multi Dapur', icon: '🍳', apiKey: 'produksi' },
+  'bahan-baku': { label: 'Bahan Baku & Pemasok', icon: '📦', apiKey: 'bahan-baku' },
+  'menu-planning': { label: 'Menu Planning & AI', icon: '🤖', apiKey: 'menu-planning' },
+  logistik: { label: 'Logistik & Distribusi', icon: '🚚', apiKey: 'logistik' },
+  tracking: { label: 'Mobile Distribution Tracking', icon: '📍', apiKey: 'tracking' },
 };
 
 // ── Decorative background blobs ────────────────────────────────────────
@@ -322,7 +322,7 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
               fontFamily: 'var(--font-mono)',
               fontWeight: 600,
             }}>
-              Premium: admin / admin123<br/>
+              Premium: admin / admin123<br />
               Biasa: user / user123
             </code>
           </div>
@@ -383,7 +383,7 @@ export default function App() {
 
   // Render active page content
   const renderPage = () => {
-    if (userRole === 'user' && !['karyawan', 'keuangan', 'ai-prediction'].includes(activeMenu)) {
+    if (userRole === 'user' && !['karyawan', 'keuangan', 'ai-history'].includes(activeMenu)) {
       return (
         <div style={{ padding: 40, textAlign: 'center' }}>
           <h2>Akses Terkunci</h2>
@@ -392,10 +392,10 @@ export default function App() {
       );
     }
 
-    if (activeMenu === 'dashboard')       return <MasterDashboard />;
-    if (activeMenu === 'keuangan')         return <FinancePage userRole={userRole} />;
-    if (activeMenu === 'karyawan')         return <EmployeePage />;
-    if (activeMenu === 'ai-prediction')    return <AiPredictionHistoryPage />;
+    if (activeMenu === 'dashboard')  return <MasterDashboard />;
+    if (activeMenu === 'keuangan')   return <FinancePage userRole={userRole} />;
+    if (activeMenu === 'karyawan')   return <EmployeePage />;
+    if (activeMenu === 'ai-history') return <UniversalAiHistoryPage />;
 
 
     const mod = MODULE_CONFIG[activeMenu];

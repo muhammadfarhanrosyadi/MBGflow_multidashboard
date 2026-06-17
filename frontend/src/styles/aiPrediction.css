@@ -1,537 +1,85 @@
-/* ============================================================
-   AI Prediction History Dashboard — Styles
-   src/styles/aiPrediction.css
-   ============================================================
-   Design system tokens from theme.css are used throughout.
-   All class names are prefixed with `aipred-` to avoid leakage.
-   ============================================================ */
+/* AI Prediction Styles */
 
-/* ── Page Wrapper ─────────────────────────────────────────── */
-.aipred-page {
+.ai-prediction-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.ai-prediction-card h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 16px 0;
+}
+
+.prediction-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.75rem 2rem;
-  min-height: 100%;
-  animation: fadeInUp 0.35s ease both;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-/* ── Page Header ──────────────────────────────────────────── */
-.aipred-header {
+.prediction-item {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.aipred-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.aipred-page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.aipred-page-title .title-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-  border-radius: 10px;
-  font-size: 1.1rem;
-  box-shadow: var(--shadow-glow-green);
-  flex-shrink: 0;
-}
-
-.aipred-subtitle {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* ── Stats Row ────────────────────────────────────────────── */
-.aipred-stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.aipred-stat-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 1.1rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-normal);
-}
-
-.aipred-stat-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--accent-primary-dim);
-  transform: translateY(-2px);
-}
-
-.aipred-stat-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.aipred-stat-icon--green  { background: var(--accent-soft); }
-.aipred-stat-icon--blue   { background: var(--color-info-dim); }
-.aipred-stat-icon--amber  { background: var(--color-warning-dim); }
-.aipred-stat-icon--purple { background: var(--color-purple-dim); }
-
-.aipred-stat-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.aipred-stat-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.aipred-stat-value {
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.aipred-stat-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-
-/* ── Toolbar (search + filters) ───────────────────────────── */
-.aipred-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.aipred-search-wrap {
-  position: relative;
-  flex: 1;
-  min-width: 220px;
-  max-width: 480px;
-}
-
-.aipred-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
-  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #F8FAFC 0%, #E8F5E9 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   align-items: center;
 }
 
-.aipred-search-input {
-  width: 100%;
-  padding: 0.6rem 0.9rem 0.6rem 2.3rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border-default);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-family: var(--font-sans);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.aipred-search-input::placeholder { color: var(--text-muted); }
-
-.aipred-search-input:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-primary-dim);
-}
-
-.aipred-search-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  padding: 2px;
-  border-radius: 4px;
-  transition: color var(--transition-fast);
-}
-
-.aipred-search-clear:hover { color: var(--text-primary); }
-
-.aipred-filter-select {
-  padding: 0.6rem 0.8rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border-default);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-family: var(--font-sans);
-  color: var(--text-primary);
-  outline: none;
-  cursor: pointer;
-  transition: border-color var(--transition-fast);
-}
-
-.aipred-filter-select:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-primary-dim);
-}
-
-.aipred-toolbar-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 11px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-primary-dim);
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--accent-primary);
-  white-space: nowrap;
-}
-
-.aipred-btn-refresh {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0.6rem 1rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border-default);
-  border-radius: var(--radius-md);
-  font-size: 0.82rem;
-  font-weight: 600;
-  font-family: var(--font-sans);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
-}
-
-.aipred-btn-refresh:hover:not(:disabled) {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  background: var(--accent-soft);
-}
-
-.aipred-btn-refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.aipred-btn-refresh .spin { animation: spin 0.7s linear infinite; }
-
-/* ── Card wrapper around the table ───────────────────────── */
-.aipred-table-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-
-/* ── Table ────────────────────────────────────────────────── */
-.aipred-table-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.aipred-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.aipred-table thead {
-  background: var(--bg-soft);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.aipred-table thead tr {
-  border-bottom: 1px solid var(--border-default);
-}
-
-.aipred-table th {
-  padding: 0.85rem 1rem;
-  text-align: left;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-  user-select: none;
-}
-
-.aipred-table th:first-child { padding-left: 1.25rem; }
-.aipred-table th:last-child  { padding-right: 1.25rem; }
-
-.aipred-table tbody tr {
-  border-bottom: 1px solid var(--border-subtle);
-  transition: background var(--transition-fast);
-}
-
-.aipred-table tbody tr:last-child { border-bottom: none; }
-
-.aipred-table tbody tr:hover {
-  background: var(--bg-interactive);
-}
-
-.aipred-table td {
-  padding: 0.9rem 1rem;
-  color: var(--text-secondary);
-  vertical-align: top;
-}
-
-.aipred-table td:first-child { padding-left: 1.25rem; }
-.aipred-table td:last-child  { padding-right: 1.25rem; }
-
-/* ── Kitchen cell ─────────────────────────────────────────── */
-.aipred-kitchen-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.aipred-kitchen-name {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-}
-
-.aipred-kitchen-id {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-/* ── Date cell ────────────────────────────────────────────── */
-.aipred-date-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.aipred-date-main {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.aipred-date-ago {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-/* ── Waste cell ───────────────────────────────────────────── */
-.aipred-waste-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.aipred-waste-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.aipred-waste-unit {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.aipred-waste-bar-wrap {
-  flex: 1;
-  height: 5px;
-  background: var(--border-subtle);
-  border-radius: 99px;
-  min-width: 40px;
-  max-width: 80px;
-  overflow: hidden;
-}
-
-.aipred-waste-bar {
-  height: 100%;
-  border-radius: 99px;
-  transition: width 0.4s ease;
-}
-
-/* ── Suggestion cell ──────────────────────────────────────── */
-.aipred-suggestion-cell {
-  max-width: 320px;
-}
-
-.aipred-suggestion-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-/* ── Confidence badge ─────────────────────────────────────── */
-.aipred-confidence {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 99px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.aipred-confidence--high   { background: var(--color-success-dim);  color: var(--color-success); }
-.aipred-confidence--medium { background: var(--color-warning-dim);  color: var(--color-warning); }
-.aipred-confidence--low    { background: var(--color-danger-dim);   color: var(--color-danger);  }
-
-/* ── Empty / Loading / Error states ──────────────────────── */
-.aipred-state-row td {
+.prediction-icon {
+  font-size: 24px;
+  min-width: 30px;
   text-align: center;
-  padding: 3.5rem 1rem;
-  color: var(--text-muted);
-  border-bottom: none !important;
 }
 
-.aipred-state-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
+.prediction-content {
+  flex: 1;
 }
 
-.aipred-state-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.25rem;
-}
-
-.aipred-state-desc {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
-/* ── Pagination ───────────────────────────────────────────── */
-.aipred-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1.25rem;
-  border-top: 1px solid var(--border-subtle);
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.aipred-pagination-info {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.aipred-pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.aipred-page-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-xs);
-  border: 1.5px solid var(--border-default);
-  background: var(--bg-elevated);
-  font-size: 0.82rem;
+.prediction-item-name {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-main);
+}
+
+.prediction-quantity {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.btn-generate {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--primary-green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  font-family: var(--font-sans);
+  transition: all 0.3s ease;
 }
 
-.aipred-page-btn:hover:not(:disabled) {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  background: var(--accent-soft);
+.btn-generate:hover:not(.generated) {
+  background: var(--hover-green);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
 }
 
-.aipred-page-btn.active {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-  color: #fff;
-}
-
-.aipred-page-btn:disabled {
-  opacity: 0.4;
+.btn-generate.generated {
+  background: #10B981;
   cursor: not-allowed;
 }
 
-/* ── Demo mode banner ─────────────────────────────────────── */
-.aipred-demo-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0.65rem 1.1rem;
-  background: var(--color-warning-dim);
-  border: 1px solid var(--warning-border);
-  border-radius: var(--radius-md);
-  font-size: 0.8rem;
-  color: var(--color-warning);
-  font-weight: 500;
-}
-
-/* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .aipred-page   { padding: 1rem; }
-  .aipred-header { flex-direction: column; }
-  .aipred-toolbar { flex-direction: column; align-items: stretch; }
-  .aipred-search-wrap { max-width: 100%; }
-  .aipred-stats-row { grid-template-columns: repeat(2, 1fr); }
-
-  /* On mobile, hide less critical columns */
-  .aipred-col-model,
-  .aipred-col-confidence { display: none; }
-}
-
-@media (max-width: 480px) {
-  .aipred-stats-row { grid-template-columns: 1fr 1fr; }
-  .aipred-col-suggestion { display: none; }
+  .prediction-item {
+    padding: 10px;
+  }
 }

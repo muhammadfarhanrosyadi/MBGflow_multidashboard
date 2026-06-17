@@ -1,26 +1,26 @@
 const express = require('express');
-const router = express.Router();
-const { generateStockPrediction } = require('../services/aiPrediction');
-const { analyzeModuleData } = require('../services/masterAnalyst');
+const router  = express.Router();
 
-// ── Import TypeScript AI Prediction controller ────────────────────────────────
-// ts-node/register is applied globally in server startup (via NODE_OPTIONS or
-// the existing npm start script). This require() will transpile the TS on-demand.
+const { generateStockPrediction } = require('../services/aiPrediction');
+const { analyzeModuleData }       = require('../services/masterAnalyst');
+
+// ── Import Universal AI History controller (TypeScript — loaded via ts-node) ──
 const {
-  getPredictionHistory,
-  createPrediction,
-} = require('../services/AiPredictionController');
+  getHistory,
+  saveHistory,
+  exportHistory,
+} = require('../services/AiHistoryController');
 
 // ── GET /api/ai/predict-stock ─────────────────────────────────────────────────
 router.get('/predict-stock', (req, res) => {
   try {
     const predictions = generateStockPrediction();
     res.json({
-      success: true,
+      success:   true,
       timestamp: new Date().toISOString(),
       predictions: {
-        beras: predictions.beras,
-        telur: Math.round(predictions.telur),
+        beras:  predictions.beras,
+        telur:  Math.round(predictions.telur),
         minyak: predictions.minyak,
       },
       message: 'Prediksi stok minggu depan berhasil dibuat',
@@ -45,8 +45,8 @@ router.post('/analyze', async (req, res) => {
     const analysis = await analyzeModuleData({ moduleName, moduleLabel, tableData, chartData });
 
     res.json({
-      success: true,
-      module: moduleName,
+      success:     true,
+      module:      moduleName,
       analysis,
       generatedAt: new Date().toISOString(),
     });
@@ -56,14 +56,25 @@ router.post('/analyze', async (req, res) => {
   }
 });
 
-// ── GET /api/ai/predictions/history ──────────────────────────────────────────
-// Query params: kitchen_id?, search?, limit?, page?
-// Returns: paginated AI prediction history ordered by date DESC
-router.get('/predictions/history', getPredictionHistory);
+// ══════════════════════════════════════════════════════════════════════════════
+// UNIVERSAL AI HISTORY  —  /api/ai/history/*
+// ══════════════════════════════════════════════════════════════════════════════
 
-// ── POST /api/ai/predictions ──────────────────────────────────────────────────
-// Body: { kitchen_id, prediction_date, predicted_waste_kg, suggested_portion_adjustment?, ... }
-// Creates and persists a new AI prediction record
-router.post('/predictions', createPrediction);
+// IMPORTANT: The export route MUST be registered BEFORE the /:module_name route
+// to avoid Express capturing "export" as the module_name parameter.
+
+// ── GET /api/ai/history/export/:module_name?format=xlsx|pdf ──────────────────
+// Downloads an XLSX or PDF report of all predictions for the given module.
+router.get('/history/export/:module_name', exportHistory);
+
+// ── GET /api/ai/history/:module_name ─────────────────────────────────────────
+// Query params: kitchen_id?, search?, limit?, page?
+// Returns paginated history for the given SCM module.
+router.get('/history/:module_name', getHistory);
+
+// ── POST /api/ai/history ─────────────────────────────────────────────────────
+// Body: { kitchen_id, module_name, prediction_date, prediction_result }
+// Saves a new universal AI prediction record.
+router.post('/history', saveHistory);
 
 module.exports = router;
