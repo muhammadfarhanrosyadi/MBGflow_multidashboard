@@ -250,7 +250,6 @@ const UniversalAiHistoryPage: React.FC = () => {
     return pages;
   }, [totalPages, currentPage]);
 
-  // ── Render cell value ──────────────────────────────────────────────────────
   const renderCell = (record: AiHistoryRecord, col: { key: string; source: 'root' | 'result'; format?: string }) => {
     if (col.key === 'prediction_date') {
       const { main, ago } = dateLabel(record.prediction_date);
@@ -280,6 +279,22 @@ const UniversalAiHistoryPage: React.FC = () => {
     const rawVal = col.source === 'root'
       ? (record as unknown as Record<string, unknown>)[col.key]
       : record.prediction_result[col.key];
+
+    // ── Cashflow AI fallback mapping ──────────────────────────────────
+    // If the standard key is absent, try the cashflow-specific equivalent
+    if ((rawVal === undefined || rawVal === null || rawVal === '') && col.source === 'result') {
+      const r = record.prediction_result;
+      const fallback: Record<string, unknown> = {
+        kesimpulan:      r.kebocoran_anggaran,   // cashflow: kebocoran_anggaran → kesimpulan col
+        temuanMasalah:   r.tren_pengeluaran ? [String(r.tren_pengeluaran)] : undefined,  // tren → list
+        solusiStrategis: r.saran ? [String(r.saran)] : undefined,                        // saran → list
+      };
+      const fallbackVal = fallback[col.key];
+      if (fallbackVal !== undefined && fallbackVal !== null) {
+        return renderValue(fallbackVal, col.format);
+      }
+    }
+    // ── End cashflow fallback ─────────────────────────────────────────
 
     return renderValue(rawVal, col.format);
   };

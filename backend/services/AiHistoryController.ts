@@ -21,6 +21,14 @@ function isValidModule(v: unknown): boolean {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/** Normalise a query-string value that Express types as string | ParsedQs | string[] | ParsedQs[] → string | undefined */
+function qs(v: unknown): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (Array.isArray(v)) return typeof v[0] === 'string' ? v[0] : undefined;
+  if (typeof v === 'string') return v;
+  return undefined;
+}
+
 /** Flatten arrays and objects in prediction_result to readable strings */
 function fmtCell(v: unknown): string {
   if (v === null || v === undefined) return '—';
@@ -47,19 +55,17 @@ const STANDARD_AI_COLUMNS = [
 
 export async function getHistory(req: Request, res: Response): Promise<void> {
   try {
-    const { module_name } = req.params;
+    const module_name = String(req.params.module_name);
 
     if (!isValidModule(module_name)) {
       res.status(400).json({ success: false, error: 'module_name tidak valid.' });
       return;
     }
 
-    const {
-      kitchen_id,
-      search,
-      limit: limitParam = '50',
-      page:  pageParam  = '1',
-    } = req.query as Record<string, string>;
+    const kitchen_id = qs(req.query.kitchen_id);
+    const search     = qs(req.query.search);
+    const limitParam = qs(req.query.limit)  ?? '50';
+    const pageParam  = qs(req.query.page)   ?? '1';
 
     const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
     const page   = Math.max(parseInt(pageParam) || 1, 1);
@@ -86,11 +92,9 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
 
 export async function getAllHistory(req: Request, res: Response): Promise<void> {
   try {
-    const {
-      search,
-      limit: limitParam = '50',
-      page:  pageParam  = '1',
-    } = req.query as Record<string, string>;
+    const search     = qs(req.query.search);
+    const limitParam = qs(req.query.limit) ?? '50';
+    const pageParam  = qs(req.query.page)  ?? '1';
 
     const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
     const page   = Math.max(parseInt(pageParam) || 1, 1);
@@ -154,8 +158,8 @@ export async function saveHistory(req: Request, res: Response): Promise<void> {
 
 export async function exportHistory(req: Request, res: Response): Promise<void> {
   try {
-    const { module_name } = req.params;
-    const format = (req.query.format as string || 'xlsx').toLowerCase();
+    const module_name = String(req.params.module_name);
+    const format = (qs(req.query.format) || 'xlsx').toLowerCase();
 
     if (!isValidModule(module_name)) {
       res.status(400).json({ success: false, error: 'module_name tidak valid.' });

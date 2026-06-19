@@ -96,7 +96,18 @@ export const MODULE_CONFIG: Record<ModuleName, ModuleConfig> = {
     label: 'Keuangan',
     icon:  '💰',
     color: '#059669',
-    columns: COMMON_AI_COLUMNS,
+    // Keuangan bisa punya 2 format:
+    //   1. Standard AI (dari masterAnalyst): kesimpulan, temuanMasalah, solusiStrategis, confidenceScore
+    //   2. Cashflow Audit AI: kebocoran_anggaran, tren_pengeluaran, saran
+    // Kolom yang ditampilkan bisa handle keduanya
+    columns: [
+      { key: 'kitchen_name',         header: 'Dapur / Konteks',       source: 'root',   format: 'text'  },
+      { key: 'prediction_date',      header: 'Tanggal Analisis',      source: 'root',   format: 'text'  },
+      { key: 'kesimpulan',           header: 'Kesimpulan / Kebocoran', source: 'result', format: 'text'  },
+      { key: 'temuanMasalah',        header: 'Temuan / Tren',         source: 'result', format: 'list'  },
+      { key: 'solusiStrategis',      header: 'Solusi / Saran',        source: 'result', format: 'list'  },
+      { key: 'confidenceScore',      header: 'Confidence',            source: 'result', format: 'score' },
+    ],
   },
   karyawan: {
     label: 'Kelola Karyawan',

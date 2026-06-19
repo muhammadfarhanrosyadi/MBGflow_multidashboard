@@ -111,6 +111,23 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
       const json = await res.json();
       if (json.success) {
         setAiReport(json.data);
+
+        // ── Auto-save ke Universal AI History ────────────────────────
+        const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        fetch('http://localhost:5000/api/ai/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            module_name: 'keuangan',
+            module_label: 'Keuangan — Audit Cashflow AI',
+            kitchen_id: null,
+            prediction_date: nowStr,
+            prediction_result: json.data,
+          }),
+        }).then(r => r.json())
+          .then(h => { if (h.success) console.log('[AI History] Cashflow audit saved ✓'); })
+          .catch(err => console.warn('[AI History] Save cashflow failed (non-fatal):', err));
+        // ── End auto-save ─────────────────────────────────────────────
       }
     } catch (err) {
       console.error('AI Cashflow analysis error:', err);

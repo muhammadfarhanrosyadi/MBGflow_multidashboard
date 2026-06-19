@@ -10,6 +10,8 @@ const employeeRoutes = require('./routes/employees');
 const dashboardRoutes = require('./routes/dashboard');
 const moduleRoutes = require('./routes/modules');
 const authRoutes = require('./routes/auth');
+const searchRoutes = require('./routes/search');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = 5000;
@@ -25,6 +27,8 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

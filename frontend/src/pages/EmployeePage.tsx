@@ -141,6 +141,7 @@ const EmployeePage: React.FC = () => {
   const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'pay' | 'fire'; emp: Employee } | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [actionMenuPos, setActionMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -159,10 +160,26 @@ const EmployeePage: React.FC = () => {
 
   // Close dropdown/action menu on outside click
   useEffect(() => {
-    const handler = () => { setDropdownOpen(false); setActionMenuId(null); };
+    const handler = () => { setDropdownOpen(false); setActionMenuId(null); setActionMenuPos(null); };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
+
+  // Handle opening action menu — calculate position from trigger button
+  const handleOpenActionMenu = (e: React.MouseEvent<HTMLButtonElement>, empId: string) => {
+    e.stopPropagation();
+    if (actionMenuId === empId) {
+      setActionMenuId(null);
+      setActionMenuPos(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    setActionMenuPos({
+      top: rect.bottom + window.scrollY + 4,
+      right: window.innerWidth - rect.right,
+    });
+    setActionMenuId(empId);
+  };
 
   // Pay salary
   const handlePay = useCallback(async (emp: Employee) => {
@@ -289,24 +306,14 @@ const EmployeePage: React.FC = () => {
                               </div>
                               <span className="emp-list-id">{emp.id} • {formatRupiah(emp.salary)}</span>
                             </div>
-                            {/* Action Menu */}
+                            {/* Action Menu Trigger */}
                             <div className="emp-action-wrap" onClick={e => e.stopPropagation()}>
-                              <button className="emp-action-trigger" onClick={() => setActionMenuId(actionMenuId === emp.id ? null : emp.id)}>
+                              <button
+                                className="emp-action-trigger"
+                                onClick={(e) => handleOpenActionMenu(e, emp.id)}
+                              >
                                 <MoreVertical size={16} />
                               </button>
-                              {actionMenuId === emp.id && (
-                                <div className="emp-action-menu">
-                                  <button className="emp-action-item" onClick={() => { setEditTarget(emp); setActionMenuId(null); }}>
-                                    <Pencil size={14} /> Edit Profile
-                                  </button>
-                                  <button className="emp-action-item emp-action--pay" disabled={emp.paidThisMonth || emp.status === 'Terminated'} onClick={() => { setConfirmAction({ type: 'pay', emp }); setActionMenuId(null); }}>
-                                    <DollarSign size={14} /> {emp.paidThisMonth ? 'Sudah Dibayar' : 'Bayar Gaji'}
-                                  </button>
-                                  <button className="emp-action-item emp-action--fire" onClick={() => { setConfirmAction({ type: 'fire', emp }); setActionMenuId(null); }}>
-                                    <UserX size={14} /> Offboard
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           </li>
                         ))}
@@ -320,7 +327,55 @@ const EmployeePage: React.FC = () => {
         </div>
       )}
 
-      {/* MODALS */}
+      {/* ── GLOBAL ACTION MENU (portal-style, fixed position, above all cards) ── */}
+      {actionMenuId && actionMenuPos && (() => {
+        // Find the employee by the active actionMenuId
+        let activeEmp: Employee | null = null;
+        for (const k of kitchens) {
+          for (const emps of Object.values(k.grouped)) {
+            const found = emps.find(e => e.id === actionMenuId);
+            if (found) { activeEmp = found; break; }
+          }
+          if (activeEmp) break;
+        }
+        if (!activeEmp) return null;
+        const emp = activeEmp;
+        return (
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: actionMenuPos.top,
+              right: actionMenuPos.right,
+              width: 190,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 12px 32px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.08)',
+              zIndex: 9999,
+              padding: 4,
+              animation: 'fadeInUp 0.15s ease both',
+            }}
+          >
+            <button className="emp-action-item" onClick={() => { setEditTarget(emp); setActionMenuId(null); setActionMenuPos(null); }}>
+              <Pencil size={14} /> Edit Profile
+            </button>
+            <button
+              className="emp-action-item emp-action--pay"
+              disabled={emp.paidThisMonth || emp.status === 'Terminated'}
+              onClick={() => { setConfirmAction({ type: 'pay', emp }); setActionMenuId(null); setActionMenuPos(null); }}
+            >
+              <DollarSign size={14} /> {emp.paidThisMonth ? 'Sudah Dibayar' : 'Bayar Gaji'}
+            </button>
+            <button
+              className="emp-action-item emp-action--fire"
+              onClick={() => { setConfirmAction({ type: 'fire', emp }); setActionMenuId(null); setActionMenuPos(null); }}
+            >
+              <UserX size={14} /> Offboard
+            </button>
+          </div>
+        );
+      })()}
       {showAddModal && <AddModal onClose={() => setShowAddModal(false)} onSaved={refresh} />}
       {editTarget && <EditModal emp={editTarget} onClose={() => setEditTarget(null)} onSaved={refresh} />}
       {confirmAction?.type === 'pay' && (

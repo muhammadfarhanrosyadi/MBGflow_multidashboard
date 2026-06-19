@@ -31,7 +31,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeMenu, onMenuChange, onL
       <SidebarMenu activeMenu={activeMenu} onMenuChange={onMenuChange} onLogout={onLogout} userRole={userRole} />
 
       <section className="layout-content">
-        <TopBar title={pageTitle} />
+        <TopBar
+          title={pageTitle}
+          onNavigate={onMenuChange}
+          adminName={adminName}
+        />
         <main className="content-wrap">{children}</main>
       </section>
     </div>

@@ -161,49 +161,163 @@ export async function seed(knex: Knex): Promise<void> {
     { id: menuSotoAyam,   name: "Soto Ayam Lamongan",  category: "Sup",     cost_per_portion: 8000,  sell_price: 16000, is_active: true,  description: "Soto ayam kuah bening ala Lamongan" },
   ]);
 
-  // ── 7. Productions (7 HARI PENUH — Senin s.d Minggu, semua dapur) ──
+  // ── 7. Productions — 4 MINGGU HISTORIS, 2 SHIFT per dapur ──────────
+  // Data mencakup semua 6 dapur × 7 hari × 2 shift = 84 baris per minggu
+  // 4 minggu = 336 baris produksi + skenario kritis & normal
   const productionIds: string[] = [];
   const prodData: any[] = [];
   const kitchenIds = ["K01", "K02", "K03", "K04", "K05", "K06"];
-  const targets   = [500, 500, 400, 400, 400, 500];
-  // Variasi output per hari per dapur (7 hari × 6 dapur)
-  const weeklyActuals = [
-    // Senin
-    [480, 490, 320, 410, 370, 200],
-    // Selasa
-    [485, 495, 350, 400, 380, 210],
-    // Rabu
-    [490, 480, 340, 420, 390, 220],
-    // Kamis
-    [475, 500, 360, 415, 375, 230],
-    // Jumat
-    [495, 485, 370, 410, 385, 240],
-    // Sabtu
-    [500, 490, 380, 425, 395, 250],
-    // Minggu
-    [450, 460, 300, 380, 350, 180],
-  ];
-  const shifts = ["Pagi", "Pagi", "Siang", "Pagi", "Siang", "Pagi"];
-  const statuses = ["Completed", "Completed", "Completed", "Completed", "Completed", "In Progress"];
+  const targets = [500, 500, 400, 400, 400, 500];
 
-  for (let day = 0; day < 7; day++) {
-    for (let k = 0; k < 6; k++) {
-      const id = crypto.randomUUID();
-      productionIds.push(id);
-      const actual = weeklyActuals[day][k];
-      const target = targets[k];
-      prodData.push({
-        id,
-        kitchen_id: kitchenIds[k],
-        production_date: getWeekday(day),
-        shift: shifts[k],
-        target_portions: target,
-        actual_portions: actual,
-        status: day === 6 ? "In Progress" : statuses[k],
-        notes: actual < target * 0.7 ? "Efisiensi rendah — gangguan peralatan" : null,
-      });
+  // ── Shift Pagi: 4 minggu × 7 hari × 6 dapur ──────────────────────
+  // K06 sangat rendah (maintenance), K03 minggu-4 gangguan peralatan
+  const pagiActuals: number[][][] = [
+    // Minggu 1 (minggu ini)
+    [
+      [480, 490, 320, 410, 370, 200],
+      [485, 495, 350, 400, 380, 210],
+      [490, 480, 340, 420, 390, 220],
+      [475, 500, 360, 415, 375, 230],
+      [495, 485, 370, 410, 385, 240],
+      [500, 490, 380, 425, 395, 250],
+      [450, 460, 300, 380, 350, 180],
+    ],
+    // Minggu 2
+    [
+      [470, 485, 310, 405, 360, 195],
+      [488, 498, 345, 415, 385, 205],
+      [482, 478, 355, 418, 378, 215],
+      [478, 502, 348, 408, 368, 225],
+      [490, 488, 365, 412, 388, 235],
+      [505, 492, 375, 422, 392, 245],
+      [442, 455, 295, 378, 348, 175],
+    ],
+    // Minggu 3
+    [
+      [465, 480, 305, 400, 355, 190],
+      [483, 493, 340, 410, 380, 200],
+      [488, 475, 350, 415, 375, 210],
+      [472, 498, 344, 405, 364, 220],
+      [492, 482, 362, 408, 382, 230],
+      [498, 488, 372, 420, 390, 240],
+      [438, 452, 290, 374, 344, 170],
+    ],
+    // Minggu 4 (bulan lalu — ada insiden)
+    [
+      [455, 470, 280, 395, 340, 170],
+      [478, 485, 330, 405, 375, 190],
+      [460, 470, 185, 410, 365, 180], // K03 sangat rendah — gangguan kompor
+      [468, 490, 335, 400, 360, 200],
+      [485, 482, 355, 406, 378, 210],
+      [492, 485, 368, 418, 388, 220],
+      [432, 448, 288, 370, 340, 165],
+    ],
+  ];
+
+  // ── Shift Siang: target 60% dari shift pagi ──────────────────────
+  const siangActuals: number[][][] = [
+    [
+      [280, 275, 195, 240, 215, 110],
+      [285, 280, 205, 245, 220, 115],
+      [290, 270, 200, 250, 225, 120],
+      [275, 285, 210, 243, 218, 125],
+      [288, 278, 215, 242, 222, 130],
+      [295, 282, 220, 250, 228, 135],
+      [260, 262, 178, 225, 205, 100],
+    ],
+    [
+      [275, 270, 190, 238, 212, 108],
+      [282, 278, 200, 243, 218, 113],
+      [287, 268, 198, 248, 222, 118],
+      [272, 282, 208, 240, 215, 123],
+      [285, 275, 212, 240, 220, 128],
+      [292, 280, 218, 248, 225, 133],
+      [255, 258, 175, 222, 202, 98],
+    ],
+    [
+      [272, 268, 188, 236, 210, 106],
+      [280, 275, 198, 240, 215, 110],
+      [285, 265, 196, 245, 218, 115],
+      [270, 280, 205, 238, 212, 120],
+      [282, 272, 210, 238, 218, 125],
+      [288, 277, 216, 246, 222, 130],
+      [252, 255, 172, 220, 200, 96],
+    ],
+    [
+      [268, 264, 165, 233, 200, 100],
+      [276, 272, 195, 238, 212, 108],
+      [265, 268, 110, 240, 215, 110], // K03 drop besar
+      [270, 278, 198, 236, 210, 118],
+      [280, 270, 208, 238, 215, 122],
+      [285, 274, 215, 244, 220, 128],
+      [248, 252, 170, 218, 198, 94],
+    ],
+  ];
+
+  const siangTargets = targets.map(t => Math.floor(t * 0.6));
+
+  for (let week = 0; week < 4; week++) {
+    for (let day = 0; day < 7; day++) {
+      // Hitung tanggal: mundur dari senin minggu ini
+      const prodDate = new Date(monday);
+      prodDate.setDate(monday.getDate() - week * 7 + day);
+
+      for (let k = 0; k < 6; k++) {
+        const pagiActual = pagiActuals[week][day][k];
+        const pagiTarget = targets[k];
+        const isCurrentWeek = week === 0;
+        const isTodayOrFuture = isCurrentWeek && day >= (today.getDay() === 0 ? 6 : today.getDay() - 1);
+        const isPagiKritis = pagiActual / pagiTarget < 0.5;
+
+        // Shift Pagi
+        const pagiId = crypto.randomUUID();
+        productionIds.push(pagiId);
+        prodData.push({
+          id: pagiId,
+          kitchen_id: kitchenIds[k],
+          production_date: prodDate,
+          shift: "Pagi",
+          target_portions: pagiTarget,
+          actual_portions: pagiActual,
+          status: isTodayOrFuture && k === 5 ? "In Progress"
+            : isTodayOrFuture ? "Planned"
+            : "Completed",
+          notes:
+            k === 5
+              ? "Dapur dalam pemeliharaan — kapasitas terbatas"
+              : (week === 3 && k === 2 && day === 2)
+              ? "Gangguan kompor utama — produksi terhenti sementara. Tim teknisi diterjunkan."
+              : isPagiKritis
+              ? "Efisiensi sangat rendah — investigasi segera diperlukan"
+              : null,
+        });
+
+        // Shift Siang
+        const siangActual = siangActuals[week][day][k];
+        const siangTarget = siangTargets[k];
+        const siangId = crypto.randomUUID();
+        productionIds.push(siangId);
+        prodData.push({
+          id: siangId,
+          kitchen_id: kitchenIds[k],
+          production_date: prodDate,
+          shift: "Siang",
+          target_portions: siangTarget,
+          actual_portions: siangActual,
+          status: isTodayOrFuture ? "Planned" : "Completed",
+          notes:
+            k === 5
+              ? "Shift siang dibatasi akibat maintenance"
+              : (week === 3 && k === 2 && day === 2)
+              ? "Shift siang terdampak gangguan kompor"
+              : siangActual < siangTarget * 0.7
+              ? "Efisiensi siang di bawah target"
+              : null,
+        });
+      }
     }
   }
+
   await knex("productions").insert(prodData);
 
   // ── 8. Logistics (dengan waktu realistis) ──
