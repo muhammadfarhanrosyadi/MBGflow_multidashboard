@@ -175,7 +175,7 @@ const EmployeePage: React.FC = () => {
     }
     const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
     setActionMenuPos({
-      top: rect.bottom + window.scrollY + 4,
+      top: rect.bottom + 4,
       right: window.innerWidth - rect.right,
     });
     setActionMenuId(empId);
