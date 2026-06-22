@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const { generateDateFilter, parseReportParams } = require('../services/reportService');
 
 // ============================================================
 // GET /api/modules/:modulename
@@ -34,36 +37,31 @@ function dowToIndex(dow) {
 // ================================================================
 
 // ── PRODUKSI & MULTI DAPUR ──────────────────────────────────────
-async function getModuleProduksi() {
-  const { monday, sunday } = getWeekRange();
-
-  // Chart: output vs target per hari
-  const chartRows = await db('productions')
-    .whereBetween('production_date', [monday, sunday])
+async function getModuleProduksi(filterParams = {}) {
+  // Chart: output vs target per hari (grouped by date)
+  let chartQuery = db('productions')
     .select(
-      db.raw('DAYOFWEEK(production_date) as dow'),
+      db.raw('DATE_FORMAT(production_date, "%Y-%m-%d") as dateGroup'),
       db.raw('SUM(actual_portions) as output'),
       db.raw('SUM(target_portions) as target'),
       db.raw('MAX(CAST((SELECT capacity FROM kitchens WHERE kitchens.id = productions.kitchen_id) AS UNSIGNED)) as kapasitas')
     )
-    .groupByRaw('DAYOFWEEK(production_date)')
-    .orderByRaw('DAYOFWEEK(production_date)');
+    .groupByRaw('DATE_FORMAT(production_date, "%Y-%m-%d")')
+    .orderBy('dateGroup');
 
-  const chartData = dayNames.map((name, idx) => {
-    const targetDow = idx === 6 ? 1 : idx + 2;
-    const row = chartRows.find(r => Number(r.dow) === targetDow);
-    return {
-      date: name,
-      output: row ? Number(row.output) : 0,
-      target: row ? Number(row.target) : 0,
-      kapasitas: row ? Number(row.kapasitas) : 0,
-    };
-  });
+  chartQuery = generateDateFilter(chartQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'production_date');
+  const chartRows = await chartQuery;
+
+  const chartData = chartRows.map(r => ({
+    date: r.dateGroup,
+    output: Number(r.output),
+    target: Number(r.target),
+    kapasitas: Number(r.kapasitas),
+  }));
 
   // Table: per dapur + shift
-  const tableData = await db('productions')
+  let tableQuery = db('productions')
     .join('kitchens', 'productions.kitchen_id', 'kitchens.id')
-    .whereBetween('production_date', [monday, sunday])
     .select(
       'productions.id',
       'kitchens.name as dapur',
@@ -74,6 +72,9 @@ async function getModuleProduksi() {
       'productions.status'
     )
     .orderBy('productions.production_date', 'desc');
+
+  tableQuery = generateDateFilter(tableQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'productions.production_date');
+  const tableData = await tableQuery;
 
   // Map status for display
   const mappedTable = tableData.map(r => {
@@ -108,10 +109,14 @@ async function getModuleProduksi() {
 }
 
 // ── BAHAN BAKU & PEMASOK ────────────────────────────────────────
-async function getModuleBahanBaku() {
+async function getModuleBahanBaku(filterParams = {}) {
   // Chart: stok overview per bahan (current vs minimum)
-  const stockRows = await db('raw_material_stock')
-    .join('raw_materials', 'raw_material_stock.raw_material_id', 'raw_materials.id')
+  let stockQuery = db('raw_material_stock')
+    .join('raw_materials', 'raw_material_stock.raw_material_id', 'raw_materials.id');
+    
+  stockQuery = generateDateFilter(stockQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'raw_material_stock.last_restocked_at');
+  
+  const stockRows = await stockQuery
     .select(
       'raw_materials.name as bahan',
       db.raw('SUM(raw_material_stock.current_stock) as stok'),
@@ -127,10 +132,14 @@ async function getModuleBahanBaku() {
   }));
 
   // Table: stok per dapur per bahan
-  const tableData = await db('raw_material_stock')
+  let tableQuery = db('raw_material_stock')
     .join('raw_materials', 'raw_material_stock.raw_material_id', 'raw_materials.id')
     .join('suppliers', 'raw_materials.supplier_id', 'suppliers.id')
-    .join('kitchens', 'raw_material_stock.kitchen_id', 'kitchens.id')
+    .join('kitchens', 'raw_material_stock.kitchen_id', 'kitchens.id');
+
+  tableQuery = generateDateFilter(tableQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'raw_material_stock.last_restocked_at');
+  
+  const tableData = await tableQuery
     .select(
       'raw_material_stock.id',
       'raw_materials.name as bahan',
@@ -168,10 +177,15 @@ async function getModuleBahanBaku() {
 }
 
 // ── MENU PLANNING & AI ──────────────────────────────────────────
-async function getModuleMenuPlanning() {
+async function getModuleMenuPlanning(filterParams = {}) {
   // Chart: jumlah produksi per menu
-  const menuStats = await db('production_details')
+  let menuQuery = db('production_details')
     .join('menus', 'production_details.menu_id', 'menus.id')
+    .join('productions', 'production_details.production_id', 'productions.id');
+    
+  menuQuery = generateDateFilter(menuQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'productions.production_date');
+
+  const menuStats = await menuQuery
     .select(
       'menus.name as date',
       db.raw('SUM(production_details.target_portions) as demand'),
@@ -216,9 +230,12 @@ async function getModuleMenuPlanning() {
 }
 
 // ── LOGISTIK & DISTRIBUSI ───────────────────────────────────────
-async function getModuleLogistik() {
-  // Chart: summary status per status
-  const statusCounts = await db('logistics')
+async function getModuleLogistik(filterParams = {}) {
+  // Chart: status armada
+  let logQuery = db('logistics');
+  logQuery = generateDateFilter(logQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'departure_at');
+
+  const statusCounts = await logQuery
     .select('status')
     .count('id as count')
     .groupBy('status');
@@ -240,9 +257,13 @@ async function getModuleLogistik() {
     };
   });
 
-  // Table: detail armada
-  const tableData = await db('logistics')
-    .join('kitchens', 'logistics.kitchen_id', 'kitchens.id')
+  // Table: rincian pengiriman
+  let tableQuery = db('logistics')
+    .join('kitchens', 'logistics.kitchen_id', 'kitchens.id');
+    
+  tableQuery = generateDateFilter(tableQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'logistics.departure_at');
+
+  const tableData = await tableQuery
     .select(
       'logistics.id',
       'logistics.fleet_code as armada',
@@ -272,13 +293,14 @@ async function getModuleLogistik() {
 }
 
 // ── MOBILE DISTRIBUTION TRACKING ────────────────────────────────
-async function getModuleTracking() {
+async function getModuleTracking(filterParams = {}) {
   // Chart: status armada per jam (berdasarkan data aktual)
-  const allFleet = await db('logistics')
-    .select('status', 'battery_level', 'last_gps_update');
+  let allQuery = db('logistics').select('status', 'battery_level', 'last_gps_update');
+  allQuery = generateDateFilter(allQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'departure_at');
+  const allFleet = await allQuery;
 
   const activeCount = allFleet.filter(f => ['On Route', 'Loading'].includes(f.status)).length;
-  const idleCount = allFleet.filter(f => f.status === 'Idle').includes?.length || allFleet.filter(f => f.status === 'Idle').length;
+  const idleCount = allFleet.filter(f => f.status === 'Idle').length;
   const offlineCount = allFleet.filter(f => !f.last_gps_update || f.battery_level < 15).length;
 
   const timeSlots = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
@@ -294,7 +316,10 @@ async function getModuleTracking() {
   });
 
   // Table: detail tracking per armada
-  const tableData = await db('logistics')
+  let tableQuery = db('logistics');
+  tableQuery = generateDateFilter(tableQuery, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'departure_at');
+  
+  const tableData = await tableQuery
     .select(
       'id',
       'fleet_code as armada',
@@ -343,6 +368,8 @@ const MODULE_LABELS = {
   tracking: 'Mobile Distribution Tracking',
 };
 
+
+// ── GET /api/modules/:modulename?reportType=&startDate=&endDate= ──────────────
 router.get('/:modulename', async (req, res) => {
   try {
     const { modulename } = req.params;
@@ -355,7 +382,8 @@ router.get('/:modulename', async (req, res) => {
       });
     }
 
-    const data = await handler();
+    const filterParams = parseReportParams(req.query);
+    const data = await handler(filterParams);
 
     res.json({
       success: true,
@@ -369,6 +397,7 @@ router.get('/:modulename', async (req, res) => {
         generatedAt: new Date().toISOString(),
         source: 'database',
         label: MODULE_LABELS[modulename],
+        filter: filterParams,
       },
     });
   } catch (error) {
@@ -377,4 +406,87 @@ router.get('/:modulename', async (req, res) => {
   }
 });
 
+// ── GET /api/modules/:modulename/export?format=xlsx|pdf ──────────────────────
+router.get('/:modulename/export', async (req, res) => {
+  try {
+    const { modulename } = req.params;
+    const { format = 'xlsx' } = req.query;
+    const handler = MODULE_HANDLERS[modulename];
+    const label = MODULE_LABELS[modulename] || modulename;
+
+    if (!handler) {
+      return res.status(404).json({ success: false, error: `Modul "${modulename}" tidak ditemukan.` });
+    }
+
+    const filterParams = parseReportParams(req.query);
+    const data = await handler(filterParams);
+    const rows = data.tableData || [];
+
+    if (format === 'xlsx') {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet(label);
+
+      if (rows.length > 0) {
+        const cols = Object.keys(rows[0]);
+        ws.columns = cols.map(k => ({
+          header: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          key: k, width: 20,
+        }));
+        ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B6B45' } };
+        rows.forEach(r => ws.addRow(r));
+      }
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${modulename}_export.xlsx"`);
+      await wb.xlsx.write(res);
+      res.end();
+
+    } else if (format === 'pdf') {
+      const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${modulename}_export.pdf"`);
+      doc.pipe(res);
+
+      doc.fontSize(16).font('Helvetica-Bold').text(`Laporan: ${label}`, { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text(`Dicetak: ${new Date().toLocaleString('id-ID')}`, { align: 'center' });
+      doc.moveDown(1);
+
+      if (rows.length > 0) {
+        const cols = Object.keys(rows[0]).filter(k => k !== 'id');
+        const colW = Math.floor((doc.page.width - 80) / cols.length);
+        let y = doc.y;
+
+        doc.rect(40, y, cols.length * colW, 18).fill('#1B6B45');
+        cols.forEach((k, i) => {
+          doc.fillColor('white').font('Helvetica-Bold').fontSize(8)
+             .text(k.replace(/_/g, ' ').toUpperCase(), 40 + i * colW + 3, y + 5, { width: colW - 6, lineBreak: false });
+        });
+        doc.y = y + 20;
+
+        rows.forEach((row, ri) => {
+          y = doc.y + 1;
+          if (y > 520) { doc.addPage(); y = 40; }
+          doc.rect(40, y, cols.length * colW, 15).fill(ri % 2 === 0 ? '#F9FAFB' : '#FFFFFF');
+          cols.forEach((k, i) => {
+            doc.fillColor('#111827').font('Helvetica').fontSize(7.5)
+               .text(String(row[k] ?? '-').substring(0, 30), 40 + i * colW + 3, y + 4, { width: colW - 6, lineBreak: false });
+          });
+          doc.y = y + 15;
+        });
+      } else {
+        doc.fontSize(12).fillColor('#666').text('Tidak ada data.', { align: 'center' });
+      }
+
+      doc.end();
+    } else {
+      res.status(400).json({ success: false, error: 'format harus xlsx atau pdf' });
+    }
+  } catch (error) {
+    console.error(`Error exporting module ${req.params.modulename}:`, error);
+    res.status(500).json({ success: false, error: 'Export error.' });
+  }
+});
+
 module.exports = router;
+

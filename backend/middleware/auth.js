@@ -2,13 +2,12 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'scm-secret-key-123';
 
-// ── Role hierarchy map ────────────────────────────────────────────────────────
-// Maps legacy DB role values to internal roles.
-// DB role: 'admin'  → treated as super_admin + procurement
-// DB role: 'user'   → treated as viewer
+// ── Role system ───────────────────────────────────────────────────────────────
+// 'admin' adalah Super Admin dengan akses penuh ke seluruh fitur.
+// 'user'  adalah viewer biasa (akses terbatas).
 const ROLE_PERMISSIONS = {
   super_admin:  ['super_admin', 'procurement', 'finance', 'logistics', 'production', 'viewer'],
-  admin:        ['super_admin', 'procurement', 'finance', 'logistics', 'production', 'viewer'],
+  admin:        ['super_admin', 'procurement', 'finance', 'logistics', 'production', 'viewer'], // admin = akses penuh
   procurement:  ['procurement', 'viewer'],
   finance:      ['finance', 'viewer'],
   logistics:    ['logistics', 'viewer'],

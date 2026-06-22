@@ -29,6 +29,9 @@ import {
   type AiHistoryRecord,
 } from '../services/aiHistoryService';
 
+import ReportFilterBar from '../components/ReportFilterBar';
+import type { ReportFilter } from '../types';
+
 import '../styles/aiHistory.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -169,6 +172,7 @@ const UniversalAiHistoryPage: React.FC = () => {
   const [debSearch,    setDebSearch]    = useState('');
   const [currentPage,  setCurrentPage]  = useState(1);
   const [exporting,    setExporting]    = useState<'xlsx' | 'pdf' | null>(null);
+  const [filter,       setFilter]       = useState<ReportFilter>({ reportType: '', startDate: '', endDate: '' });
 
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cfg    = MODULE_CONFIG[activeModule];
@@ -185,7 +189,12 @@ const UniversalAiHistoryPage: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchHistory(activeModule, { limit: 200 });
+      const params: any = { limit: 200 };
+      if (filter.reportType) params.reportType = filter.reportType;
+      if (filter.startDate)  params.startDate  = filter.startDate;
+      if (filter.endDate)    params.endDate    = filter.endDate;
+
+      const res = await fetchHistory(activeModule, params);
       setAllRecords(res.data);
       setIsDemoMode(false);
     } catch {
@@ -196,7 +205,7 @@ const UniversalAiHistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeModule]);
+  }, [activeModule, filter]);
 
   useEffect(() => { setCurrentPage(1); }, [activeModule, debSearch]);
   useEffect(() => { loadData(); }, [loadData]);
@@ -231,7 +240,11 @@ const UniversalAiHistoryPage: React.FC = () => {
   // ── Export ─────────────────────────────────────────────────────────────────
   const handleExport = (format: 'xlsx' | 'pdf') => {
     setExporting(format);
-    downloadExport(activeModule, format);
+    const params: any = {};
+    if (filter.reportType) params.reportType = filter.reportType;
+    if (filter.startDate)  params.startDate  = filter.startDate;
+    if (filter.endDate)    params.endDate    = filter.endDate;
+    downloadExport(activeModule, format, params);
     setTimeout(() => setExporting(null), 2500);
   };
 
@@ -327,17 +340,20 @@ const UniversalAiHistoryPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="aih-header-actions">
-          <button id="btn-export-xlsx" className="aih-btn aih-btn--xlsx"
-            onClick={() => handleExport('xlsx')} disabled={exporting !== null || loading}>
-            {exporting === 'xlsx' ? <RefreshIcon spin /> : <span>📊</span>}
-            Download XLSX
-          </button>
-          <button id="btn-export-pdf" className="aih-btn aih-btn--pdf"
-            onClick={() => handleExport('pdf')} disabled={exporting !== null || loading}>
-            {exporting === 'pdf' ? <RefreshIcon spin /> : <span>📄</span>}
-            Download PDF
-          </button>
+        <div className="aih-header-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button id="btn-export-xlsx" className="aih-btn aih-btn--xlsx"
+              onClick={() => handleExport('xlsx')} disabled={exporting !== null || loading}>
+              {exporting === 'xlsx' ? <RefreshIcon spin /> : <span>📊</span>}
+              Download XLSX
+            </button>
+            <button id="btn-export-pdf" className="aih-btn aih-btn--pdf"
+              onClick={() => handleExport('pdf')} disabled={exporting !== null || loading}>
+              {exporting === 'pdf' ? <RefreshIcon spin /> : <span>📄</span>}
+              Download PDF
+            </button>
+          </div>
+          <ReportFilterBar value={filter} onChange={setFilter} />
         </div>
       </header>
 

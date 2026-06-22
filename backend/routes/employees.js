@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const { generateDateFilter, parseReportParams } = require('../services/reportService');
+
+const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(n) || 0);
 
 // ============================================================
 // KITCHEN LOOKUP HELPER
@@ -31,6 +36,7 @@ router.get('/kitchen/:kitchenId', async (req, res) => {
   try {
     const { kitchenId } = req.params;
     const { role, includeTerminated } = req.query;
+    const filterParams = parseReportParams(req.query);
 
     let query = db('employees')
       .join('kitchens', 'employees.kitchen_id', 'kitchens.id')
@@ -57,6 +63,8 @@ router.get('/kitchen/:kitchenId', async (req, res) => {
     if (role) {
       query = query.where('employees.role', role);
     }
+
+    query = generateDateFilter(query, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'employees.created_at');
 
     const employeesData = await query;
     
@@ -274,5 +282,91 @@ router.post('/:id/pay', async (req, res) => {
 });
 
 // GET /api/employees/kitchen/all is handled by /kitchen/:kitchenId where kitchenId = 'all'
+
+// ── GET /api/employees/export?format=xlsx|pdf ───────────────────────────────
+router.get('/export', async (req, res) => {
+  try {
+    const { format = 'xlsx' } = req.query;
+    const filterParams = parseReportParams(req.query);
+    const statusMap = { active: 'Active', on_leave: 'On Leave', terminated: 'Terminated' };
+
+    let query = db('employees')
+      .join('kitchens', 'employees.kitchen_id', 'kitchens.id')
+      .select(
+        'employees.name as nama',
+        'employees.role as jabatan',
+        'kitchens.name as dapur',
+        'employees.salary as gaji',
+        'employees.status as status',
+        'employees.email'
+      )
+      .where('employees.status', '!=', 'terminated')
+      .orderBy('kitchens.name')
+      .orderBy('employees.role');
+
+    query = generateDateFilter(query, filterParams.reportType, filterParams.startDate, filterParams.endDate, 'employees.created_at');
+    const employees = await query;
+
+    const rows = employees.map(e => ({
+      ...e,
+      gaji: formatRupiah(e.gaji),
+      status: statusMap[e.status] || e.status,
+    }));
+
+    if (format === 'xlsx') {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Data Karyawan');
+      if (rows.length > 0) {
+        ws.columns = Object.keys(rows[0]).map(k => ({
+          header: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          key: k, width: 24,
+        }));
+        ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B6B45' } };
+        rows.forEach(r => ws.addRow(r));
+      }
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="karyawan_export.xlsx"');
+      await wb.xlsx.write(res);
+      res.end();
+
+    } else if (format === 'pdf') {
+      const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="karyawan_export.pdf"');
+      doc.pipe(res);
+      doc.fontSize(16).font('Helvetica-Bold').text('Laporan Data Karyawan', { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text(`Dicetak: ${new Date().toLocaleString('id-ID')}`, { align: 'center' });
+      doc.moveDown(1);
+      if (rows.length > 0) {
+        const cols = Object.keys(rows[0]);
+        const colW = Math.floor((doc.page.width - 80) / cols.length);
+        let y = doc.y;
+        doc.rect(40, y, cols.length * colW, 18).fill('#1B6B45');
+        cols.forEach((k, i) => {
+          doc.fillColor('white').font('Helvetica-Bold').fontSize(8)
+             .text(k.toUpperCase(), 40 + i * colW + 3, y + 5, { width: colW - 6, lineBreak: false });
+        });
+        doc.y = y + 20;
+        rows.forEach((row, ri) => {
+          y = doc.y + 1;
+          if (y > 520) { doc.addPage(); y = 40; }
+          doc.rect(40, y, cols.length * colW, 15).fill(ri % 2 === 0 ? '#F9FAFB' : '#FFFFFF');
+          cols.forEach((k, i) => {
+            doc.fillColor('#111827').font('Helvetica').fontSize(7.5)
+               .text(String(row[k] ?? '-').substring(0, 30), 40 + i * colW + 3, y + 4, { width: colW - 6, lineBreak: false });
+          });
+          doc.y = y + 15;
+        });
+      }
+      doc.end();
+    } else {
+      res.status(400).json({ success: false, error: 'format harus xlsx atau pdf' });
+    }
+  } catch (error) {
+    console.error('Employee export error:', error);
+    res.status(500).json({ success: false, error: 'Export error' });
+  }
+});
 
 module.exports = router;

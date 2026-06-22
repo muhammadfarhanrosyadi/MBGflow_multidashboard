@@ -1,138 +1,103 @@
-# Module M6.1 - Login & Keamanan Akun
+# Supply Chain Management (SCM) Master Admin Dashboard
 
-Proyek sederhana untuk demo login system dan role-based access control menggunakan React + TypeScript (Vite) dan Node.js + Express.
+Proyek web aplikasi SCM tingkat lanjut dengan dukungan analitik AI (Gemini), pelaporan dinamis multi-dapur, manajemen inventaris, pelacakan logistik, pengaturan keuangan, dan sistem persetujuan pemasok (Vendor Approval). Dibangun menggunakan React + TypeScript (Vite) untuk frontend dan Node.js + Express + Knex.js + SQLite untuk backend.
 
-## 🎯 Fitur yang Diimplementasikan
+## 🎯 Fitur Utama
 
-### TASK 1 - Sistem Login
-- ✅ Endpoint `POST /api/login`
-- ✅ Validasi username dan password
-- ✅ Dummy user: `admin` / `admin123`
-- ✅ Response dengan user data dan role
-
-### TASK 2 - Cek Izin Akses
-- ✅ Endpoint `GET /api/me`
-- ✅ Mengembalikan data user saat ini
-
-### TASK 3 - Frontend Login Page
-- ✅ Form login dengan input username dan password
-- ✅ Konsumsi API `/api/login`
-- ✅ Alert success/error
-- ✅ Desain modern dengan tema putih-hijau
-
-### TASK 4 - Role-Based Access Control
-- ✅ Cek role user (admin)
-- ✅ Redirect ke dashboard jika role admin
-- ✅ Pesan "Akses Ditolak" untuk role lain
-- ✅ Dashboard sederhana dengan info user
+- **Sistem Login Super Admin**: `admin` / `admin123` dengan akses penuh.
+- **Dashboard Global SCM**: Tinjauan metrik utama secara real-time.
+- **Manajemen Karyawan (Role & Gaji)**: Menambahkan, mengedit, dan memfilter data karyawan berdasarkan dapur.
+- **Manajemen Persetujuan Pemasok (Vendor Approval)**: Modul untuk verifikasi, meninjau ulang, dan menyetujui calon pemasok bahan baku.
+- **Sistem Pelaporan Universal**: Filter rentang tanggal (Harian, Bulanan, Tahunan, Kustom) dan ekspor laporan (XLSX, PDF) yang tersedia di seluruh modul.
+- **Universal AI Analyst**: Dukungan analisis data secara otomatis menggunakan Gemini AI, mencakup seluruh modul.
 
 ## 📁 Struktur Project
 
 ```
 maneki_project/
 ├── backend/
-│   ├── package.json
-│   ├── server.js
-│   └── routes/
-│       └── auth.js
+│   ├── database/       # Migrasi & Seeding Knex.js
+│   ├── routes/         # Endpoint API Express (ai, employees, finance, modules, dll.)
+│   ├── services/       # Service layer (aiHistoryService, reportService, dll.)
+│   ├── server.js       # Entry point Backend
+│   └── scm_mbg.sql     # Berkas database SQLite
 └── frontend/
-    ├── package.json
-    ├── vite.config.ts
-    ├── tsconfig.json
-    ├── index.html
-    └── src/
-        ├── main.tsx
-        ├── App.tsx
-        ├── pages/
-        │   ├── LoginPage.tsx
-        │   └── Dashboard.tsx
-        ├── services/
-        │   └── authService.ts
-        └── styles/
-            ├── global.css
-            ├── loginPage.css
-            ├── dashboard.css
-            └── App.css
+    ├── src/
+    │   ├── components/ # Komponen UI re-usable (ReportFilterBar, SidebarMenu, dll.)
+    │   ├── pages/      # Halaman modul utama (FinancePage, EmployeePage, dll.)
+    │   ├── services/   # Service layer Frontend (aiHistoryService.ts, dll.)
+    │   ├── App.tsx     # Router & Entry point Frontend
+    │   └── main.tsx    
+    └── vite.config.ts  
 ```
 
 ## 🚀 Cara Menjalankan
 
-### Backend Setup
+### 1. Backend Setup
 
 ```bash
 cd backend
-npm install express cors
-npm run dev
-# atau
-node server.js
+npm install
+npm run migrate:latest  # Memperbarui skema database (jika ada perubahan)
+npm run seed:run        # Mengisi data dummy (optional)
+npm run dev             # Menjalankan server backend
 ```
+Server backend akan berjalan di **http://localhost:5000**
 
-Server akan berjalan di **http://localhost:5000**
-
-### Frontend Setup
+### 2. Frontend Setup
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+Frontend akan berjalan di **http://localhost:3000** atau port acak yang dialokasikan Vite.
 
-Frontend akan berjalan di **http://localhost:3000**
+---
 
-## 🎨 Tema UI - Putih & Hijau
+## 🔗 PANDUAN INTEGRASI API (Untuk Web Teman/Partner)
 
-| Komponen | Warna | Hex |
-|----------|-------|-----|
-| Background Utama | Abu-abu Terang | #F8FAFC |
-| Card | Putih | #FFFFFF |
-| Border | Abu-abu | #E5E7EB |
-| Primary (Hijau) | Hijau | #16A34A |
-| Hover (Hijau) | Hijau Tua | #15803D |
-| Text Utama | Abu-abu Gelap | #1F2937 |
+Jika sistem SCM ini ingin dihubungkan dengan website lain (seperti web e-commerce, portal supplier eksternal, atau aplikasi kasir), Anda dapat memanfaatkan REST API backend yang telah disediakan.
 
-## 🔐 Dummy User untuk Login
-
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
-| Role | `admin` |
-
-## 📝 Fitur Teknis
-
-- ✅ CORS enabled untuk komunikasi frontend-backend
-- ✅ Form validation di frontend
-- ✅ Error handling untuk failed login
-- ✅ LocalStorage untuk menyimpan user session
-- ✅ Role-based conditional rendering
-- ✅ TypeScript untuk type safety
-- ✅ Responsive design
-
-## 💡 Next Steps (Untuk Development)
-
-Fitur yang bisa ditambahkan:
-- [ ] Integrasi database (MySQL/MongoDB)
-- [ ] JWT authentication
-- [ ] Password hashing (bcrypt)
-- [ ] Session management
-- [ ] Multiple roles (admin, user, supervisor)
-- [ ] User registration
-- [ ] Password recovery
-- [ ] 2FA (Two-Factor Authentication)
-
-## 📌 Testing
-
-Untuk test login berhasil:
-```
-Username: admin
-Password: admin123
+### 1. Autentikasi API
+Sebagian besar endpoint SCM dilindungi oleh token. Pastikan sistem eksternal melakukan login terlebih dahulu atau gunakan *Service Account Token* (Bearer Token) pada header.
+```http
+Authorization: Bearer <TOKEN_ANDA>
 ```
 
-Untuk test login gagal:
-```
-Username: admin
-Password: salahpassword
+### 2. Endpoint Integrasi Utama
+
+#### A. Integrasi Pemasok (Vendor) Eksternal
+Jika web teman Anda adalah portal pendaftaran pemasok, mereka bisa mengirimkan data pendaftaran ke:
+- **POST** `/api/vendors/register`
+  - **Payload:** `{ "companyName": "PT XYZ", "category": "Bahan Baku", "contact": "0812...", "email": "xyz@mail.com" }`
+  - **Fungsi:** Mengirim calon vendor ke antrean *Vendor Approval* di SCM ini.
+- **GET** `/api/vendors/status/:id`
+  - **Fungsi:** Mengecek status vendor (Pending/Approved/Rejected).
+
+#### B. Integrasi Inventaris & Produksi
+Jika web teman Anda adalah aplikasi kasir (POS) yang membutuhkan informasi ketersediaan stok:
+- **GET** `/api/modules/bahan-baku`
+  - **Fungsi:** Menarik data stok bahan baku secara real-time.
+- **GET** `/api/modules/produksi`
+  - **Fungsi:** Melihat status produksi harian per dapur.
+
+#### C. Menarik Laporan AI secara Terpusat
+- **GET** `/api/ai/history/all`
+  - **Query Params:** `?reportType=monthly` (opsional: `startDate`, `endDate`)
+  - **Fungsi:** Mengambil riwayat keputusan AI untuk ditampilkan di dashboard eksekutif gabungan.
+
+### 3. Konfigurasi CORS
+Secara default, backend SCM mengizinkan akses (CORS) dari semua domain (`*`). Jika aplikasi akan diunggah ke production, pastikan Anda memodifikasi konfigurasi CORS di `backend/server.js` untuk hanya mengizinkan URL web teman Anda demi alasan keamanan:
+
+```javascript
+// Di server.js
+const corsOptions = {
+  origin: ['https://web-teman-anda.com', 'https://web-lainnya.com'],
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 ```
 
 ---
-**Module M6.1 - Login & Keamanan Akun** - Demo Project
+**Module SCM Master Admin** - © 2026

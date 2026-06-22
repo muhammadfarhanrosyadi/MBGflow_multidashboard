@@ -3,11 +3,13 @@ import {
   BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { CheckCircle, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Bot, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Bot, Sparkles, Download, FileText } from 'lucide-react';
 import type {
   Approval, ApprovalStatus,
   CashflowData, CashflowChartPoint, CashflowAiInsight
 } from '../types/finance-employee';
+import type { ReportFilter } from '../types';
+import ReportFilterBar from '../components/ReportFilterBar';
 import '../styles/finance.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -29,41 +31,82 @@ const CashflowTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-// ── Tab Type ───────────────────────────────────────────────────────────
+// ── Filter label helper ────────────────────────────────────────────────────
+const filterLabel = (f: ReportFilter) => {
+  if (!f.reportType) return 'Semua Periode';
+  if (f.reportType === 'daily')   return 'Hari Ini';
+  if (f.reportType === 'monthly') return 'Bulan Ini';
+  if (f.reportType === 'yearly')  return 'Tahun Ini';
+  if (f.reportType === 'custom' && f.startDate && f.endDate)
+    return `${f.startDate} s/d ${f.endDate}`;
+  return 'Kustom';
+};
+
+// ── Export helper ─────────────────────────────────────────────────────────
+async function triggerFinanceExport(type: string, format: 'xlsx' | 'pdf', filter: ReportFilter) {
+  const params = new URLSearchParams({ type, format });
+  if (filter.reportType) params.set('reportType', filter.reportType);
+  if (filter.startDate)  params.set('startDate',  filter.startDate);
+  if (filter.endDate)    params.set('endDate',    filter.endDate);
+  const res = await fetch(`http://localhost:5000/api/finance/export?${params}`);
+  if (!res.ok) throw new Error('Export gagal');
+  const blob = await res.blob();
+  const url  = window.URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `finance_${type}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+// ── Tab Type ─────────────────────────────────────────────────────────
 type FinanceTab = 'approval' | 'cashflow';
 
-// ═══════════════════════════════════════════════════════════════════════
+const EMPTY_FILTER: ReportFilter = { reportType: '', startDate: '', endDate: '' };
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
   const [tab, setTab] = useState<FinanceTab>('approval');
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [cashflow, setCashflow] = useState<CashflowData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ReportFilter>(EMPTY_FILTER);
+  const [exporting, setExporting] = useState(false);
   
   // AI States
   const [aiReport, setAiReport] = useState<CashflowAiInsight | null>(null);
   const [analyzingCashflow, setAnalyzingCashflow] = useState(false);
 
-  // Fetch data based on active tab
-  useEffect(() => {
+  // Fetch data based on active tab + filter
+  const fetchData = (currentTab: FinanceTab, currentFilter: ReportFilter) => {
     setLoading(true);
-    const url = tab === 'approval'
-      ? 'http://localhost:5000/api/finance/approvals'
-      : 'http://localhost:5000/api/finance/cashflow';
+    const params = new URLSearchParams();
+    if (currentFilter.reportType) params.set('reportType', currentFilter.reportType);
+    if (currentFilter.startDate)  params.set('startDate',  currentFilter.startDate);
+    if (currentFilter.endDate)    params.set('endDate',    currentFilter.endDate);
+    const qs = params.toString() ? '?' + params : '';
+    const url = currentTab === 'approval'
+      ? `http://localhost:5000/api/finance/approvals${qs}`
+      : `http://localhost:5000/api/finance/cashflow${qs}`;
 
     fetch(url)
       .then(r => r.json())
       .then(json => {
         if (json.success) {
-          if (tab === 'approval') setApprovals(json.data);
+          if (currentTab === 'approval') setApprovals(json.data);
           else setCashflow(json.data);
         }
       })
       .catch(err => console.error('Finance fetch error:', err))
       .finally(() => setLoading(false));
-  }, [tab]);
+  };
+
+  useEffect(() => { fetchData(tab, filter); }, [tab]);
 
   // Handle approve/reject
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
@@ -136,6 +179,21 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
     }
   };
 
+  const handleFilterChange = (f: ReportFilter) => {
+    if (f.reportType === 'custom' && (!f.startDate || !f.endDate)) { setFilter(f); return; }
+    setFilter(f);
+    fetchData(tab, f);
+  };
+
+  const handleExport = async (fmt: 'xlsx' | 'pdf') => {
+    setExporting(true);
+    try {
+      const type = tab === 'approval' ? 'approvals' : 'cashflow';
+      await triggerFinanceExport(type, fmt, filter);
+    } catch { alert('Export gagal.'); }
+    finally { setExporting(false); }
+  };
+
   // Status badge renderer
   const renderStatusBadge = (status: ApprovalStatus) => {
     const cls =
@@ -147,23 +205,71 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
 
   return (
     <div className="finance-page">
-      {/* ── Tab Bar ─────────────────────────────────────────── */}
-      <div className="finance-tab-bar">
-        <button
-          className={`finance-tab ${tab === 'approval' ? 'active' : ''}`}
-          onClick={() => setTab('approval')}
-        >
-          💰 Approval Dana
-        </button>
-        {userRole !== 'user' && (
+      {/* ── Tab Bar + Filter + Export ──────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 10, marginBottom: 2,
+      }}>
+        {/* Tabs */}
+        <div className="finance-tab-bar" style={{ marginBottom: 0 }}>
           <button
-            className={`finance-tab ${tab === 'cashflow' ? 'active' : ''}`}
-            onClick={() => setTab('cashflow')}
+            className={`finance-tab ${tab === 'approval' ? 'active' : ''}`}
+            onClick={() => setTab('approval')}
           >
-            📊 Cash Flow
+            💰 Approval Dana
           </button>
-        )}
+          {userRole !== 'user' && (
+            <button
+              className={`finance-tab ${tab === 'cashflow' ? 'active' : ''}`}
+              onClick={() => setTab('cashflow')}
+            >
+              📊 Cash Flow
+            </button>
+          )}
+        </div>
+
+        {/* Filter + Export */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <ReportFilterBar
+            value={filter}
+            onChange={handleFilterChange}
+            onReset={() => { setFilter(EMPTY_FILTER); fetchData(tab, EMPTY_FILTER); }}
+          />
+          <button
+            onClick={() => handleExport('xlsx')}
+            disabled={exporting || loading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 12px', background: 'var(--bg-surface)',
+              border: '1.5px solid var(--border-default)', borderRadius: 8,
+              color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600,
+              cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Download size={13} /> Excel
+          </button>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting || loading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 12px', background: 'var(--bg-surface)',
+              border: '1.5px solid var(--border-default)', borderRadius: 8,
+              color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600,
+              cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <FileText size={13} /> PDF
+          </button>
+        </div>
       </div>
+
+      {/* Periode label */}
+      {filter.reportType && (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, paddingLeft: 2 }}>
+          Menampilkan: <strong style={{ color: 'var(--accent-primary)' }}>{filterLabel(filter)}</strong>
+        </div>
+      )}
 
       {/* ── Loading ────────────────────────────────────────── */}
       {loading && (

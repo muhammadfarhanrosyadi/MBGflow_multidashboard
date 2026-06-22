@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ChevronDown, Users, Filter, UserPlus, MoreVertical, Pencil, DollarSign, UserX, X, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Users, Filter, UserPlus, MoreVertical, Pencil, DollarSign, UserX, X, AlertTriangle, Download } from 'lucide-react';
 import type { Employee, EmployeeRole, EmployeeStatus, KitchenGrouped } from '../types/finance-employee';
 import { KITCHEN_OPTIONS, DEFAULT_SALARIES } from '../types/finance-employee';
+import ReportFilterBar from '../components/ReportFilterBar';
+import type { ReportFilter } from '../types';
 import '../styles/employee.css';
 
 const API = 'http://localhost:5000/api/employees';
@@ -144,6 +146,8 @@ const EmployeePage: React.FC = () => {
   const [actionMenuPos, setActionMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ReportFilter>({ reportType: '', startDate: '', endDate: '' });
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
   const refresh = () => setRefreshKey(k => k + 1);
@@ -151,12 +155,17 @@ const EmployeePage: React.FC = () => {
   // Fetch
   useEffect(() => {
     setLoading(true);
-    fetch(`${API}/kitchen/all`)
+    const q = new URLSearchParams();
+    if (filter.reportType) q.append('reportType', filter.reportType);
+    if (filter.startDate) q.append('startDate', filter.startDate);
+    if (filter.endDate) q.append('endDate', filter.endDate);
+
+    fetch(`${API}/kitchen/all?${q.toString()}`)
       .then(r => r.json())
       .then(json => { if (json.success) setKitchens(json.data); })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
-  }, [refreshKey]);
+  }, [refreshKey, filter]);
 
   // Close dropdown/action menu on outside click
   useEffect(() => {
@@ -208,6 +217,33 @@ const EmployeePage: React.FC = () => {
     return result;
   }, [kitchens, selectedKitchen]);
 
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
+    setExporting(format);
+    try {
+      const q = new URLSearchParams({ format });
+      if (filter.reportType) q.append('reportType', filter.reportType);
+      if (filter.startDate) q.append('startDate', filter.startDate);
+      if (filter.endDate) q.append('endDate', filter.endDate);
+
+      const res = await fetch(`${API}/export?${q.toString()}`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Karyawan_${new Date().toISOString().slice(0, 10)}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Gagal mengekspor data.');
+    } finally {
+      setTimeout(() => setExporting(null), 2500);
+    }
+  };
+
   const getFilteredGrouped = (grouped: Record<EmployeeRole, Employee[]>) => {
     if (!activeRoleFilter) return grouped;
     const f: Record<string, Employee[]> = {};
@@ -231,15 +267,25 @@ const EmployeePage: React.FC = () => {
             <p className="emp-header-subtitle">{totalEmployees} karyawan • {kitchens.length} dapur</p>
           </div>
         </div>
-        <div className="emp-header-right">
-          <button className="emp-btn emp-btn--add" onClick={() => setShowAddModal(true)}>
-            <UserPlus size={16} /> Tambah Karyawan
-          </button>
-          <div className="emp-dropdown-wrap" onClick={e => e.stopPropagation()}>
-            <button className="emp-dropdown-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
-              <span>{selectedKitchen === 'all' ? 'Semua Dapur' : kitchens.find(k => k.kitchenId === selectedKitchen)?.kitchenName}</span>
-              <ChevronDown size={16} className={`emp-dropdown-chevron ${dropdownOpen ? 'open' : ''}`} />
+        <div className="emp-header-right" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="emp-btn" onClick={() => handleExport('xlsx')} disabled={!!exporting} style={{ backgroundColor: '#107c41', color: 'white' }}>
+              {exporting === 'xlsx' ? '⌛' : <Download size={16} />} XLSX
             </button>
+            <button className="emp-btn" onClick={() => handleExport('pdf')} disabled={!!exporting} style={{ backgroundColor: '#d83b01', color: 'white' }}>
+              {exporting === 'pdf' ? '⌛' : <Download size={16} />} PDF
+            </button>
+            <button className="emp-btn emp-btn--add" onClick={() => setShowAddModal(true)}>
+              <UserPlus size={16} /> Tambah Karyawan
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <ReportFilterBar value={filter} onChange={setFilter} />
+            <div className="emp-dropdown-wrap" onClick={e => e.stopPropagation()}>
+              <button className="emp-dropdown-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
+                <span>{selectedKitchen === 'all' ? 'Semua Dapur' : kitchens.find(k => k.kitchenId === selectedKitchen)?.kitchenName}</span>
+                <ChevronDown size={16} className={`emp-dropdown-chevron ${dropdownOpen ? 'open' : ''}`} />
+              </button>
             {dropdownOpen && (
               <div className="emp-dropdown-menu">
                 <button className={`emp-dropdown-item ${selectedKitchen === 'all' ? 'active' : ''}`} onClick={() => { setSelectedKitchen('all'); setDropdownOpen(false); }}>Semua Dapur</button>
@@ -250,6 +296,7 @@ const EmployeePage: React.FC = () => {
                 ))}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

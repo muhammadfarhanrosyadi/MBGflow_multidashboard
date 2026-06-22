@@ -146,7 +146,7 @@ function authHeader(): HeadersInit {
 
 export async function fetchHistory(
   module_name: ModuleName,
-  params: { search?: string; kitchen_id?: string; limit?: number; page?: number } = {},
+  params: { search?: string; kitchen_id?: string; limit?: number; page?: number; reportType?: string; startDate?: string; endDate?: string } = {},
 ): Promise<HistoryResponse> {
   const endpoint = module_name === 'all'
     ? `${BASE_URL}/api/ai/history`
@@ -157,6 +157,9 @@ export async function fetchHistory(
   if (params.kitchen_id) url.searchParams.set('kitchen_id', params.kitchen_id);
   if (params.limit)      url.searchParams.set('limit',      String(params.limit));
   if (params.page)       url.searchParams.set('page',       String(params.page));
+  if (params.reportType) url.searchParams.set('reportType', params.reportType);
+  if (params.startDate)  url.searchParams.set('startDate',  params.startDate);
+  if (params.endDate)    url.searchParams.set('endDate',    params.endDate);
 
   const res = await fetch(url.toString(), { headers: authHeader() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -164,9 +167,18 @@ export async function fetchHistory(
 }
 
 /** Triggers a file download from the export endpoint */
-export function downloadExport(module_name: ModuleName | string, format: 'xlsx' | 'pdf'): void {
-  const url = `${BASE_URL}/api/ai/history/export/${module_name}?format=${format}`;
-  fetch(url, { headers: authHeader() })
+export function downloadExport(
+  module_name: ModuleName | string, 
+  format: 'xlsx' | 'pdf',
+  params: { reportType?: string; startDate?: string; endDate?: string } = {}
+): void {
+  const url = new URL(`${BASE_URL}/api/ai/history/export/${module_name}`);
+  url.searchParams.set('format', format);
+  if (params.reportType) url.searchParams.set('reportType', params.reportType);
+  if (params.startDate)  url.searchParams.set('startDate',  params.startDate);
+  if (params.endDate)    url.searchParams.set('endDate',    params.endDate);
+
+  fetch(url.toString(), { headers: authHeader() })
     .then(async res => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

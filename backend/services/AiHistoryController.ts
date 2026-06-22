@@ -66,14 +66,17 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
     const search     = qs(req.query.search);
     const limitParam = qs(req.query.limit)  ?? '50';
     const pageParam  = qs(req.query.page)   ?? '1';
+    const reportType = qs(req.query.reportType);
+    const startDate  = qs(req.query.startDate);
+    const endDate    = qs(req.query.endDate);
 
     const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
     const page   = Math.max(parseInt(pageParam) || 1, 1);
     const offset = (page - 1) * limit;
 
     const [history, total] = await Promise.all([
-      AiHistoryService.getHistory({ module_name, kitchen_id, search, limit, offset }),
-      AiHistoryService.countHistory({ module_name, kitchen_id, search }),
+      AiHistoryService.getHistory({ module_name, kitchen_id, search, limit, offset, reportType, startDate, endDate }),
+      AiHistoryService.countHistory({ module_name, kitchen_id, search, reportType, startDate, endDate }),
     ]);
 
     res.json({
@@ -95,14 +98,17 @@ export async function getAllHistory(req: Request, res: Response): Promise<void> 
     const search     = qs(req.query.search);
     const limitParam = qs(req.query.limit) ?? '50';
     const pageParam  = qs(req.query.page)  ?? '1';
+    const reportType = qs(req.query.reportType);
+    const startDate  = qs(req.query.startDate);
+    const endDate    = qs(req.query.endDate);
 
     const limit  = Math.min(Math.max(parseInt(limitParam) || 50, 1), 200);
     const page   = Math.max(parseInt(pageParam) || 1, 1);
     const offset = (page - 1) * limit;
 
     const [history, total] = await Promise.all([
-      AiHistoryService.getHistory({ search, limit, offset }),
-      AiHistoryService.countHistory({ search }),
+      AiHistoryService.getHistory({ search, limit, offset, reportType, startDate, endDate }),
+      AiHistoryService.countHistory({ search, reportType, startDate, endDate }),
     ]);
 
     res.json({
@@ -171,10 +177,14 @@ export async function exportHistory(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const reportType = qs(req.query.reportType);
+    const startDate  = qs(req.query.startDate);
+    const endDate    = qs(req.query.endDate);
+
     // Support 'all' as a special module_name to export all modules
     const rows = module_name === 'all'
-      ? await AiHistoryService.getAllForExport('')   // see note in service
-      : await AiHistoryService.getAllForExport(module_name);
+      ? await AiHistoryService.getAllForExport('', { reportType, startDate, endDate })   // see note in service
+      : await AiHistoryService.getAllForExport(module_name, { reportType, startDate, endDate });
 
     const moduleLabel = module_name === 'all' ? 'Semua Modul' :
       rows[0]?.module_label ?? module_name;

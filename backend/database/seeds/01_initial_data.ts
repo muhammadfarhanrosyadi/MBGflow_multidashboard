@@ -256,14 +256,17 @@ export async function seed(knex: Knex): Promise<void> {
 
   const siangTargets = targets.map(t => Math.floor(t * 0.6));
 
-  for (let week = 0; week < 4; week++) {
+  // Generate for 12 weeks instead of 4 to provide deeper historical data
+  for (let week = 0; week < 12; week++) {
     for (let day = 0; day < 7; day++) {
       // Hitung tanggal: mundur dari senin minggu ini
       const prodDate = new Date(monday);
       prodDate.setDate(monday.getDate() - week * 7 + day);
 
       for (let k = 0; k < 6; k++) {
-        const pagiActual = pagiActuals[week][day][k];
+        // Reuse the 4-week pattern for the 12 weeks
+        const patternWeek = week % 4;
+        const pagiActual = pagiActuals[patternWeek][day][k];
         const pagiTarget = targets[k];
         const isCurrentWeek = week === 0;
         const isTodayOrFuture = isCurrentWeek && day >= (today.getDay() === 0 ? 6 : today.getDay() - 1);
@@ -293,7 +296,7 @@ export async function seed(knex: Knex): Promise<void> {
         });
 
         // Shift Siang
-        const siangActual = siangActuals[week][day][k];
+        const siangActual = siangActuals[patternWeek][day][k];
         const siangTarget = siangTargets[k];
         const siangId = crypto.randomUUID();
         productionIds.push(siangId);
@@ -398,10 +401,33 @@ export async function seed(knex: Knex): Promise<void> {
     },
   ];
 
-  for (const l of logData) {
-    const id = crypto.randomUUID();
-    logIds.push(id);
-    await knex("logistics").insert({ id, ...l });
+  // Duplikasi logData untuk memberikan riwayat yang lebih panjang
+  for (let i = 0; i < 30; i++) {
+    for (const l of logData) {
+      const id = crypto.randomUUID();
+      logIds.push(id);
+      
+      const dayOffset = Math.floor(Math.random() * 90); // Sebar di 90 hari terakhir
+      const timeOffset = dayOffset * 24 * 3600 * 1000;
+      
+      await knex("logistics").insert({
+        id,
+        kitchen_id: l.kitchen_id,
+        fleet_code: l.fleet_code,
+        driver_name: l.driver_name,
+        driver_phone: l.driver_phone,
+        route: l.route,
+        status: dayOffset > 0 ? "Delivered" : l.status, // Data lampau selalu delivered
+        load_percentage: l.load_percentage,
+        vehicle_lat: l.vehicle_lat,
+        vehicle_lon: l.vehicle_lon,
+        battery_level: l.battery_level,
+        departure_at: l.departure_at ? new Date(l.departure_at.getTime() - timeOffset) : null,
+        estimated_arrival_at: l.estimated_arrival_at ? new Date(l.estimated_arrival_at.getTime() - timeOffset) : null,
+        actual_arrival_at: (dayOffset > 0 && l.departure_at) ? new Date(l.departure_at.getTime() - timeOffset + 2 * 3600 * 1000) : l.actual_arrival_at,
+        last_gps_update: l.last_gps_update ? new Date(l.last_gps_update.getTime() - timeOffset) : null,
+      });
+    }
   }
 
   // ── 9. Employees (14 karyawan di 6 dapur) ──
@@ -426,17 +452,17 @@ export async function seed(knex: Knex): Promise<void> {
   for (const emp of employeeData) {
     const id = crypto.randomUUID();
     empIds.push(id);
-    await knex("employees").insert({ id, ...emp });
+    const joinDate = new Date(Date.now() - Math.floor(Math.random() * 365 * 86400000));
+    await knex("employees").insert({ id, ...emp, created_at: joinDate, updated_at: joinDate });
   }
 
-  // ── 10. Finance Requests ──
   await knex("finance_requests").insert([
-    { id: crypto.randomUUID(), kitchen_id: "K01", requested_by: adminId, amount: 2500000, description: "Pembelian bahan baku darurat (beras & minyak)", status: "pending" },
-    { id: crypto.randomUUID(), kitchen_id: "K02", requested_by: adminId, amount: 1800000, description: "Perbaikan kompor dan peralatan masak", status: "pending" },
-    { id: crypto.randomUUID(), kitchen_id: "K03", requested_by: adminId, amount: 3200000, description: "Pengadaan alat pengemas baru", status: "approved", approved_at: new Date() },
-    { id: crypto.randomUUID(), kitchen_id: "K04", requested_by: financeUserId, amount: 1500000, description: "Pembelian bahan bumbu rempah bulanan", status: "approved", approved_at: new Date() },
-    { id: crypto.randomUUID(), kitchen_id: "K05", requested_by: adminId, amount: 4200000, description: "Renovasi dapur dan perbaikan ventilasi", status: "pending" },
-    { id: crypto.randomUUID(), kitchen_id: "K06", requested_by: financeUserId, amount: 8500000, description: "Perbaikan peralatan dapur besar (oven, steamer)", status: "rejected" },
+    { id: crypto.randomUUID(), kitchen_id: "K01", requested_by: adminId, amount: 2500000, description: "Pembelian bahan baku darurat (beras & minyak)", status: "pending", created_at: new Date(Date.now() - 2 * 86400000) },
+    { id: crypto.randomUUID(), kitchen_id: "K02", requested_by: adminId, amount: 1800000, description: "Perbaikan kompor dan peralatan masak", status: "pending", created_at: new Date(Date.now() - 5 * 86400000) },
+    { id: crypto.randomUUID(), kitchen_id: "K03", requested_by: adminId, amount: 3200000, description: "Pengadaan alat pengemas baru", status: "approved", approved_at: new Date(Date.now() - 10 * 86400000), created_at: new Date(Date.now() - 15 * 86400000) },
+    { id: crypto.randomUUID(), kitchen_id: "K04", requested_by: financeUserId, amount: 1500000, description: "Pembelian bahan bumbu rempah bulanan", status: "approved", approved_at: new Date(Date.now() - 20 * 86400000), created_at: new Date(Date.now() - 22 * 86400000) },
+    { id: crypto.randomUUID(), kitchen_id: "K05", requested_by: adminId, amount: 4200000, description: "Renovasi dapur dan perbaikan ventilasi", status: "pending", created_at: new Date(Date.now() - 30 * 86400000) },
+    { id: crypto.randomUUID(), kitchen_id: "K06", requested_by: financeUserId, amount: 8500000, description: "Perbaikan peralatan dapur besar (oven, steamer)", status: "rejected", created_at: new Date(Date.now() - 40 * 86400000) },
   ]);
 
   // ── 11. Cashflow Transactions ──
@@ -459,12 +485,19 @@ export async function seed(knex: Knex): Promise<void> {
     { kitchen_id: "K05", type: "in",  amount: 3800000,  description: "Pendapatan pesanan khusus Semarang",            category: "Pendapatan Distribusi",   transaction_date: getWeekday(5) },
   ];
 
-  for (const cf of cashflowData) {
-    await knex("cashflow_transactions").insert({
-      id: crypto.randomUUID(),
-      ...cf,
-      recorded_by: adminId,
-    });
+  for (let i = 0; i < 12; i++) { // Duplikasi untuk 12 minggu
+    const weekOffset = i * 7;
+    for (const cf of cashflowData) {
+      const txDate = new Date(cf.transaction_date);
+      txDate.setDate(txDate.getDate() - weekOffset);
+      
+      await knex("cashflow_transactions").insert({
+        id: crypto.randomUUID(),
+        ...cf,
+        transaction_date: txDate,
+        recorded_by: adminId,
+      });
+    }
   }
 
   // ── 12. Salary Payments ──
@@ -560,7 +593,7 @@ export async function seed(knex: Knex): Promise<void> {
     await knex("raw_material_stock").insert({
       id: crypto.randomUUID(),
       ...stock,
-      last_restocked_at: new Date(Date.now() - Math.floor(Math.random() * 7 * 86400000)),
+      last_restocked_at: new Date(Date.now() - Math.floor(Math.random() * 90 * 86400000)),
     });
   }
 }

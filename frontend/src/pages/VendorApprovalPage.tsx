@@ -17,7 +17,7 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Array<{ id: number; msg: string; type: 'success' | 'error' }>>([]);
 
-  const canApprove = !userRole || userRole === 'admin' || userRole === 'super_admin' || userRole === 'procurement';
+  const canApprove = !userRole || userRole === 'master_admin' || userRole === 'admin' || userRole === 'super_admin' || userRole === 'procurement';
 
   const fetchPending = async () => {
     setLoading(true);

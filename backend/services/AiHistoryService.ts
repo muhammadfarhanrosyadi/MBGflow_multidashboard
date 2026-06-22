@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const db = require('../db') as import('knex').Knex;
+const { generateDateFilter } = require('./reportService');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,9 @@ export interface FetchHistoryOptions {
   search?: string;
   limit?: number;
   offset?: number;
+  reportType?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -82,7 +86,7 @@ export class AiHistoryService {
   }
 
   static async getHistory(opts: FetchHistoryOptions = {}): Promise<UniversalAiHistory[]> {
-    const { module_name, kitchen_id, search, limit = 100, offset = 0 } = opts;
+    const { module_name, kitchen_id, search, limit = 100, offset = 0, reportType, startDate, endDate } = opts;
 
     let query = db(TABLE)
       .select(
@@ -114,12 +118,14 @@ export class AiHistoryService {
       });
     }
 
+    query = generateDateFilter(query, reportType, startDate, endDate, `${TABLE}.prediction_date`);
+
     const rows = await query;
     return rows.map(AiHistoryService._parseRow);
   }
 
   static async countHistory(opts: Omit<FetchHistoryOptions, 'limit' | 'offset'> = {}): Promise<number> {
-    const { module_name, kitchen_id, search } = opts;
+    const { module_name, kitchen_id, search, reportType, startDate, endDate } = opts;
 
     let query = db(TABLE)
       .leftJoin('kitchens', `${TABLE}.kitchen_id`, 'kitchens.id')
@@ -139,11 +145,13 @@ export class AiHistoryService {
       });
     }
 
+    query = generateDateFilter(query, reportType, startDate, endDate, `${TABLE}.prediction_date`);
+
     const [{ total }] = await query;
     return Number(total);
   }
 
-  static async getAllForExport(module_name: string): Promise<UniversalAiHistory[]> {
+  static async getAllForExport(module_name: string, opts: Omit<FetchHistoryOptions, 'limit' | 'offset'> = {}): Promise<UniversalAiHistory[]> {
     let query = db(TABLE)
       .select(
         `${TABLE}.id`,
@@ -162,6 +170,8 @@ export class AiHistoryService {
     if (module_name && module_name !== 'all') {
       query = query.where(`${TABLE}.module_name`, module_name);
     }
+
+    query = generateDateFilter(query, opts.reportType, opts.startDate, opts.endDate, `${TABLE}.prediction_date`);
 
     const rows = await query;
     return rows.map(AiHistoryService._parseRow);
