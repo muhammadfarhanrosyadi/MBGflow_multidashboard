@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Layers, UtensilsCrossed, AlertTriangle, Cpu, Wallet, Users, Clock, BadgeDollarSign } from 'lucide-react';
 import AIAnalystPanel from './AIAnalystPanel';
+import VendorDashboardWidget from './vendor/VendorDashboardWidget';
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface KPI {
@@ -359,7 +360,11 @@ const KitchenFinanceSection: React.FC = () => {
 
 
 // ── Main Dashboard ────────────────────────────────────────────────────
-const MasterDashboard: React.FC = () => {
+interface MasterDashboardProps {
+  onNavigate?: (page: string) => void;
+}
+
+const MasterDashboard: React.FC<MasterDashboardProps> = ({ onNavigate }) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -417,6 +422,11 @@ const MasterDashboard: React.FC = () => {
         {selectedKpis.map((kpi) => (
           <KPICard key={kpi.id} item={kpi} />
         ))}
+      </section>
+
+      {/* ── Vendor Approval Widget ───────────────────────────────────── */}
+      <section className="bento-card" style={{ padding: '20px 24px' }}>
+        <VendorDashboardWidget onNavigate={onNavigate} />
       </section>
 
       {/* ── Keuangan Dapur (Real-time) ───────────────────────────────── */}

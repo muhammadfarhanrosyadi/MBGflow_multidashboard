@@ -345,7 +345,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, subtitle, onNavigate, adminName 
               if (!notifOpen) fetchNotifications();
             }}
             style={{
-              position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
+              position: 'relative', border: 'none', cursor: 'pointer',
               padding: '6px',
               borderRadius: 'var(--radius-md)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

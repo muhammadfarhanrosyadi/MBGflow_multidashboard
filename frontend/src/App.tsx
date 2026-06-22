@@ -6,6 +6,9 @@ import ModulePage from './components/ModulePage';
 import FinancePage from './pages/FinancePage';
 import EmployeePage from './pages/EmployeePage';
 import UniversalAiHistoryPage from './pages/UniversalAiHistoryPage';
+import VendorListPage from './pages/VendorListPage';
+import VendorApprovalPage from './pages/VendorApprovalPage';
+import VendorDetailPage from './pages/VendorDetailPage';
 
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 
@@ -392,10 +395,20 @@ export default function App() {
       );
     }
 
-    if (activeMenu === 'dashboard')  return <MasterDashboard />;
-    if (activeMenu === 'keuangan')   return <FinancePage userRole={userRole} />;
-    if (activeMenu === 'karyawan')   return <EmployeePage />;
-    if (activeMenu === 'ai-history') return <UniversalAiHistoryPage />;
+    if (activeMenu === 'dashboard')      return <MasterDashboard onNavigate={setActiveMenu} />;
+    if (activeMenu === 'keuangan')       return <FinancePage userRole={userRole} />;
+    if (activeMenu === 'karyawan')       return <EmployeePage />;
+    if (activeMenu === 'ai-history')     return <UniversalAiHistoryPage />;
+    if (activeMenu === 'vendors')        return <VendorListPage userRole={userRole} onNavigate={setActiveMenu} />;
+    if (activeMenu === 'vendors-approval') return <VendorApprovalPage userRole={userRole} onNavigate={setActiveMenu} />;
+
+    // Vendor detail page: format 'vendors-detail-{id}'
+    if (activeMenu.startsWith('vendors-detail-')) {
+      const vendorId = parseInt(activeMenu.replace('vendors-detail-', ''), 10);
+      if (!isNaN(vendorId)) {
+        return <VendorDetailPage vendorId={vendorId} userRole={userRole} onBack={() => setActiveMenu('vendors')} />;
+      }
+    }
 
 
     const mod = MODULE_CONFIG[activeMenu];

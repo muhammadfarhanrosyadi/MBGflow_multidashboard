@@ -12,6 +12,8 @@ import {
   LogOut,
   Zap,
   Lock,
+  Store,
+  ClipboardCheck,
 } from 'lucide-react';
 
 export interface MenuItem {
@@ -36,6 +38,8 @@ const MENU_ITEMS: Array<MenuItem & { icon: React.ReactNode }> = [
   { id: 'tracking', label: 'Mobile Tracking', icon: <MapPinned size={17} /> },
   { id: 'keuangan', label: 'Keuangan', icon: <Wallet size={17} />, section: 'Manajemen' },
   { id: 'karyawan', label: 'Kelola Karyawan', icon: <UsersRound size={17} />, section: 'Manajemen' },
+  { id: 'vendors', label: 'Vendor Approval', icon: <Store size={17} />, section: 'Procurement' },
+  { id: 'vendors-approval', label: 'Antrian Approval', icon: <ClipboardCheck size={17} />, section: 'Procurement' },
   { id: 'ai-history', label: 'Prediksi AI Universal', icon: <Sparkles size={17} />, section: 'AI & Analytics' },
 ];
 

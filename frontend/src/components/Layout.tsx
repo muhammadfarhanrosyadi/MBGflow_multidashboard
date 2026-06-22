@@ -20,6 +20,8 @@ const MENU_ITEMS = [
   { id: 'tracking',     label: 'Mobile Tracking' },
   { id: 'keuangan',     label: 'Keuangan' },
   { id: 'karyawan',     label: 'Kelola Karyawan' },
+  { id: 'vendors',         label: 'Vendor Approval' },
+  { id: 'vendors-approval',label: 'Antrian Approval Vendor' },
   { id: 'ai-history',   label: 'Prediksi AI Universal' },
 ];
 

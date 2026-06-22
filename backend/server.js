@@ -12,6 +12,7 @@ const moduleRoutes = require('./routes/modules');
 const authRoutes = require('./routes/auth');
 const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
+const vendorRoutes = require('./routes/vendors');
 
 const app = express();
 const PORT = 5000;
@@ -29,10 +30,19 @@ app.use('/api/modules', moduleRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ── Global error middleware ────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  console.error('[GlobalError]', err);
+  const status = err.statusCode || 500;
+  res.status(status).json({ success: false, message: err.message || 'Internal server error' });
 });
 
 // Start server
@@ -44,5 +54,9 @@ app.listen(PORT, () => {
   console.log(`   → GET  /api/ai/history/export/:module_name?format=xlsx|pdf`);
   console.log(`   → GET  /api/finance/approvals`);
   console.log(`   → GET  /api/employees/kitchen/:kitchenId`);
+  console.log(`   → GET  /api/vendors              (Vendor list)`);
+  console.log(`   → GET  /api/vendors/stats         (Dashboard widget)`);
+  console.log(`   → POST /api/vendors/:id/approve   (Approve vendor)`);
+  console.log(`   → POST /api/vendors/:id/reject    (Reject vendor)`);
 });
 
