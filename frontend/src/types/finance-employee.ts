@@ -1,14 +1,21 @@
-// ── Finance Types ──────────────────────────────────────────────────────────
+/**
+ * src/types/finance-employee.ts
+ * Finance and Employee-specific types.
+ * ApprovalStatus is imported from the canonical location (types/index.ts).
+ */
 
-export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
+// ── Finance Types ──────────────────────────────────────────────────────────────
+// Re-export canonical approval status so existing code importing from here still works
+export type { ApprovalStatus, ApprovalStatusDB } from './index';
 
-export interface Approval {
+export interface FinanceApproval {
   id: string;
   kitchenId: string;
   kitchenName: string;
   nominal: number;
   keperluan: string;
-  status: ApprovalStatus;
+  /** Display status (capitalized) */
+  status: 'Pending' | 'Approved' | 'Rejected';
   requestedAt: string;
   requestedBy: string;
   aiNotes?: {
@@ -50,10 +57,8 @@ export interface CashflowAiInsight {
   saran: string;
 }
 
-// ── Employee Types ─────────────────────────────────────────────────────────
-
-export type EmployeeRole = 'Ahli Gizi' | 'Driver' | 'Juru Masak';
-
+// ── Employee Types ─────────────────────────────────────────────────────────────
+export type EmployeeRole   = 'Ahli Gizi' | 'Driver' | 'Juru Masak';
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Terminated';
 
 export interface Employee {
@@ -76,24 +81,14 @@ export interface KitchenGrouped {
   totalEmployees: number;
 }
 
-// ── Kitchen lookup for forms ───────────────────────────────────────────────
-
+// ── Kitchen lookup for forms ───────────────────────────────────────────────────
 export interface KitchenOption {
   id: string;
   name: string;
 }
 
-export const KITCHEN_OPTIONS: KitchenOption[] = [
-  { id: 'K01', name: 'Dapur Jakarta Pusat' },
-  { id: 'K02', name: 'Dapur Bandung' },
-  { id: 'K03', name: 'Dapur Surabaya' },
-  { id: 'K04', name: 'Dapur Yogyakarta' },
-  { id: 'K05', name: 'Dapur Semarang' },
-  { id: 'K06', name: 'Dapur Cimahi' },
-];
-
 export const DEFAULT_SALARIES: Record<EmployeeRole, number> = {
-  'Ahli Gizi':  5500000,
-  'Driver':     4200000,
-  'Juru Masak': 4800000,
+  'Ahli Gizi':  5_500_000,
+  'Driver':     4_200_000,
+  'Juru Masak': 4_800_000,
 };

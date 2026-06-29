@@ -14,6 +14,11 @@ import {
 import { TrendingUp, TrendingDown, Layers, UtensilsCrossed, AlertTriangle, Cpu, Wallet, Users, Clock, BadgeDollarSign } from 'lucide-react';
 import AIAnalystPanel from './AIAnalystPanel';
 import VendorDashboardWidget from './vendor/VendorDashboardWidget';
+import { useDashboard } from '../hooks/useDashboard';
+import { useApi } from '../hooks/useApi';
+import { financeApi } from '../api';
+import { SkeletonGrid, SkeletonPage } from './ui/SkeletonCard';
+import { ErrorState } from './ui/ErrorState';
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface KPI {
@@ -191,21 +196,15 @@ const KPICard: React.FC<{ item: KPI }> = ({ item }) => {
 
 // ── Kitchen Finance Section ───────────────────────────────────────────
 const KitchenFinanceSection: React.FC = () => {
-  const [finData, setFinData] = useState<KitchenFinanceData | null>(null);
-  const [loadingFin, setLoadingFin] = useState(true);
-
-  useEffect(() => {
-    fetch('http://localhost:5000/api/finance/kitchen-balance')
-      .then(r => r.json())
-      .then(json => { if (json.success) setFinData(json.data); })
-      .catch(() => {})
-      .finally(() => setLoadingFin(false));
-  }, []);
+  const { data: finData, isLoading: loadingFin } = useApi(
+    () => financeApi.getKitchenBalance(),
+    [],
+    { refreshInterval: 60000, immediate: true }
+  );
 
   if (loadingFin) return (
-    <div className="loading-state" style={{ padding: 20 }}>
-      <div className="spinner" />
-      <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Memuat data keuangan…</p>
+    <div style={{ padding: '20px 0' }}>
+      <SkeletonGrid count={4} columns={4} />
     </div>
   );
   if (!finData) return null;
@@ -365,29 +364,10 @@ interface MasterDashboardProps {
 }
 
 const MasterDashboard: React.FC<MasterDashboardProps> = ({ onNavigate }) => {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, isLoading: loading, error, refetch } = useDashboard();
 
-  useEffect(() => {
-    fetch('http://localhost:5000/api/dashboard')
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) setData(json.data);
-        else setError('Gagal memuat data dashboard.');
-      })
-      .catch(() => setError('Tidak dapat terhubung ke server. Pastikan backend berjalan di port 5000.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return (
-    <div className="loading-state">
-      <div className="spinner" />
-      <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Memuat data dashboard global…</p>
-    </div>
-  );
-
-  if (error) return <div className="error-state">❌ {error}</div>;
+  if (loading) return <SkeletonPage label="Memuat data dashboard global…" />;
+  if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
 
   const chartData = data.chartData.slice(0, 6).map((row, index) => ({

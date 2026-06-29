@@ -22,12 +22,11 @@ import React, {
 import {
   MODULES,
   MODULE_CONFIG,
-  fetchHistory,
-  downloadExport,
   generateDemoData,
   type ModuleName,
   type AiHistoryRecord,
 } from '../services/aiHistoryService';
+import { aiApi } from '../api';
 
 import ReportFilterBar from '../components/ReportFilterBar';
 import type { ReportFilter } from '../types';
@@ -194,7 +193,9 @@ const UniversalAiHistoryPage: React.FC = () => {
       if (filter.startDate)  params.startDate  = filter.startDate;
       if (filter.endDate)    params.endDate    = filter.endDate;
 
-      const res = await fetchHistory(activeModule, params);
+      const res = activeModule === 'all'
+        ? await aiApi.getAllHistory(params)
+        : await aiApi.getHistory(activeModule, params);
       setAllRecords(res.data);
       setIsDemoMode(false);
     } catch {
@@ -244,7 +245,7 @@ const UniversalAiHistoryPage: React.FC = () => {
     if (filter.reportType) params.reportType = filter.reportType;
     if (filter.startDate)  params.startDate  = filter.startDate;
     if (filter.endDate)    params.endDate    = filter.endDate;
-    downloadExport(activeModule, format, params);
+    aiApi.exportHistory(activeModule, format, params).catch(() => alert('Gagal mengunduh laporan.'));
     setTimeout(() => setExporting(null), 2500);
   };
 

@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { CheckCircle, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Bot, Sparkles, Download, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Bot, Sparkles, Download, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type {
-  Approval, ApprovalStatus,
+  FinanceApproval, ApprovalStatus,
   CashflowData, CashflowChartPoint, CashflowAiInsight
 } from '../types/finance-employee';
 import type { ReportFilter } from '../types';
 import ReportFilterBar from '../components/ReportFilterBar';
+import { financeApi, aiApi } from '../api';
+import { ErrorState } from '../components/ui/ErrorState';
 import '../styles/finance.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -42,89 +44,77 @@ const filterLabel = (f: ReportFilter) => {
   return 'Kustom';
 };
 
-// ── Export helper ─────────────────────────────────────────────────────────
-async function triggerFinanceExport(type: string, format: 'xlsx' | 'pdf', filter: ReportFilter) {
-  const params = new URLSearchParams({ type, format });
-  if (filter.reportType) params.set('reportType', filter.reportType);
-  if (filter.startDate)  params.set('startDate',  filter.startDate);
-  if (filter.endDate)    params.set('endDate',    filter.endDate);
-  const res = await fetch(`http://localhost:5000/api/finance/export?${params}`);
-  if (!res.ok) throw new Error('Export gagal');
-  const blob = await res.blob();
-  const url  = window.URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `finance_${type}.${format}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-}
+
 
 // ── Tab Type ─────────────────────────────────────────────────────────
 type FinanceTab = 'approval' | 'cashflow';
+type ApprovalSortKey = 'requestedAt' | 'nominal' | 'status' | 'kitchenName';
+type TransactionSortKey = 'tanggal' | 'nominal' | 'type';
 
 const EMPTY_FILTER: ReportFilter = { reportType: '', startDate: '', endDate: '' };
+const APPROVAL_PAGE_SIZE = 8;
+const TRANSACTION_PAGE_SIZE = 10;
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
   const [tab, setTab] = useState<FinanceTab>('approval');
-  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [approvals, setApprovals] = useState<FinanceApproval[]>([]);
   const [cashflow, setCashflow] = useState<CashflowData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReportFilter>(EMPTY_FILTER);
   const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState<ApprovalStatus | 'all'>('all');
+  const [approvalSortKey, setApprovalSortKey] = useState<ApprovalSortKey>('requestedAt');
+  const [approvalSortDir, setApprovalSortDir] = useState<'asc' | 'desc'>('desc');
+  const [approvalPage, setApprovalPage] = useState(1);
+  const [transactionSortKey, setTransactionSortKey] = useState<TransactionSortKey>('tanggal');
+  const [transactionSortDir, setTransactionSortDir] = useState<'asc' | 'desc'>('desc');
+  const [transactionPage, setTransactionPage] = useState(1);
   
   // AI States
   const [aiReport, setAiReport] = useState<CashflowAiInsight | null>(null);
   const [analyzingCashflow, setAnalyzingCashflow] = useState(false);
 
   // Fetch data based on active tab + filter
-  const fetchData = (currentTab: FinanceTab, currentFilter: ReportFilter) => {
+  const fetchData = useCallback(async (currentTab: FinanceTab, currentFilter: ReportFilter) => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (currentFilter.reportType) params.set('reportType', currentFilter.reportType);
-    if (currentFilter.startDate)  params.set('startDate',  currentFilter.startDate);
-    if (currentFilter.endDate)    params.set('endDate',    currentFilter.endDate);
-    const qs = params.toString() ? '?' + params : '';
-    const url = currentTab === 'approval'
-      ? `http://localhost:5000/api/finance/approvals${qs}`
-      : `http://localhost:5000/api/finance/cashflow${qs}`;
+    setError(null);
+    try {
+      if (currentTab === 'approval') {
+        const res = await financeApi.getApprovals(currentFilter);
+        setApprovals(res.data);
+      } else {
+        const res = await financeApi.getCashflow(currentFilter);
+        setCashflow(res);
+      }
+    } catch (err) {
+      console.error('Finance fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Gagal memuat data keuangan.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    fetch(url)
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          if (currentTab === 'approval') setApprovals(json.data);
-          else setCashflow(json.data);
-        }
-      })
-      .catch(err => console.error('Finance fetch error:', err))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchData(tab, filter); }, [tab]);
+  useEffect(() => { fetchData(tab, filter); }, [tab, filter, fetchData]);
+  useEffect(() => { setApprovalPage(1); setTransactionPage(1); }, [tab, search, approvalStatusFilter, filter]);
 
   // Handle approve/reject
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     setActionLoading(id);
     try {
-      const res = await fetch(`http://localhost:5000/api/finance/approvals/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setApprovals(prev =>
-          prev.map(a => a.id === id ? { ...a, status: action === 'approve' ? 'Approved' : 'Rejected' } : a)
-        );
-      }
+      await financeApi.updateApproval(id, action);
+      setApprovals(prev =>
+        prev.map(a => a.id === id ? { ...a, status: action === 'approve' ? 'Approved' : 'Rejected' } : a)
+      );
+      fetchData(tab, filter);
     } catch (err) {
       console.error('Approval action error:', err);
+      setError(err instanceof Error ? err.message : 'Gagal memperbarui approval.');
     } finally {
       setActionLoading(null);
     }
@@ -133,15 +123,11 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
   const handleAnalyzeRequest = async (id: string) => {
     setActionLoading(`ai-${id}`);
     try {
-      const res = await fetch(`http://localhost:5000/api/finance/analyze-request/${id}`, {
-        method: 'POST',
-      });
-      const json = await res.json();
-      if (json.success) {
-        setApprovals(prev => prev.map(a => a.id === id ? { ...a, aiNotes: json.data } : a));
-      }
+      const res = await financeApi.analyzeRequest(id);
+      setApprovals(prev => prev.map(a => a.id === id ? { ...a, aiNotes: res } : a));
     } catch (err) {
       console.error('AI Request analysis error:', err);
+      setError(err instanceof Error ? err.message : 'Gagal menjalankan audit AI.');
     } finally {
       setActionLoading(null);
     }
@@ -150,30 +136,21 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
   const handleAnalyzeCashflow = async () => {
     setAnalyzingCashflow(true);
     try {
-      const res = await fetch('http://localhost:5000/api/finance/analyze-cashflow');
-      const json = await res.json();
-      if (json.success) {
-        setAiReport(json.data);
+      const res = await financeApi.analyzeCashflow();
+      setAiReport(res);
 
-        // ── Auto-save ke Universal AI History ────────────────────────
-        const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        fetch('http://localhost:5000/api/ai/history', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            module_name: 'keuangan',
-            module_label: 'Keuangan — Audit Cashflow AI',
-            kitchen_id: null,
-            prediction_date: nowStr,
-            prediction_result: json.data,
-          }),
-        }).then(r => r.json())
-          .then(h => { if (h.success) console.log('[AI History] Cashflow audit saved ✓'); })
-          .catch(err => console.warn('[AI History] Save cashflow failed (non-fatal):', err));
-        // ── End auto-save ─────────────────────────────────────────────
-      }
+      const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      await aiApi.saveHistory({
+        module_name: 'keuangan',
+        module_label: 'Keuangan — Audit Cashflow AI',
+        kitchen_id: null,
+        kitchen_name: null,
+        prediction_date: nowStr,
+        prediction_result: res as any,
+      });
     } catch (err) {
       console.error('AI Cashflow analysis error:', err);
+      setError(err instanceof Error ? err.message : 'Gagal menganalisis cashflow.');
     } finally {
       setAnalyzingCashflow(false);
     }
@@ -182,15 +159,16 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
   const handleFilterChange = (f: ReportFilter) => {
     if (f.reportType === 'custom' && (!f.startDate || !f.endDate)) { setFilter(f); return; }
     setFilter(f);
-    fetchData(tab, f);
   };
 
   const handleExport = async (fmt: 'xlsx' | 'pdf') => {
     setExporting(true);
     try {
       const type = tab === 'approval' ? 'approvals' : 'cashflow';
-      await triggerFinanceExport(type, fmt, filter);
-    } catch { alert('Export gagal.'); }
+      await financeApi.exportData(type, fmt, filter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export gagal.');
+    }
     finally { setExporting(false); }
   };
 
@@ -202,6 +180,50 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
       'finance-badge--pending';
     return <span className={`finance-badge ${cls}`}>{status}</span>;
   };
+
+  const filteredApprovals = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = approvals.filter((item) => {
+      const matchesStatus = approvalStatusFilter === 'all' || item.status === approvalStatusFilter;
+      const haystack = [
+        item.id,
+        item.kitchenName,
+        item.keperluan,
+        item.requestedBy,
+        item.requestedAt,
+        item.status,
+      ].join(' ').toLowerCase();
+      return matchesStatus && (!q || haystack.includes(q));
+    });
+
+    return [...rows].sort((a, b) => {
+      const aVal = a[approvalSortKey];
+      const bVal = b[approvalSortKey];
+      const direction = approvalSortDir === 'asc' ? 1 : -1;
+      if (approvalSortKey === 'nominal') return (Number(aVal) - Number(bVal)) * direction;
+      return String(aVal).localeCompare(String(bVal), 'id-ID') * direction;
+    });
+  }, [approvals, approvalSortDir, approvalSortKey, approvalStatusFilter, search]);
+
+  const approvalTotalPages = Math.max(1, Math.ceil(filteredApprovals.length / APPROVAL_PAGE_SIZE));
+  const approvalRows = filteredApprovals.slice((approvalPage - 1) * APPROVAL_PAGE_SIZE, approvalPage * APPROVAL_PAGE_SIZE);
+
+  const filteredTransactions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = (cashflow?.transactions ?? []).filter((item) => {
+      const haystack = [item.id, item.tanggal, item.keterangan, item.type].join(' ').toLowerCase();
+      return !q || haystack.includes(q);
+    });
+
+    return [...rows].sort((a, b) => {
+      const direction = transactionSortDir === 'asc' ? 1 : -1;
+      if (transactionSortKey === 'nominal') return (a.nominal - b.nominal) * direction;
+      return String(a[transactionSortKey]).localeCompare(String(b[transactionSortKey]), 'id-ID') * direction;
+    });
+  }, [cashflow?.transactions, search, transactionSortDir, transactionSortKey]);
+
+  const transactionTotalPages = Math.max(1, Math.ceil(filteredTransactions.length / TRANSACTION_PAGE_SIZE));
+  const transactionRows = filteredTransactions.slice((transactionPage - 1) * TRANSACTION_PAGE_SIZE, transactionPage * TRANSACTION_PAGE_SIZE);
 
   return (
     <div className="finance-page">
@@ -272,6 +294,67 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
       )}
 
       {/* ── Loading ────────────────────────────────────────── */}
+      <div className="finance-toolbar">
+        <div className="finance-search-wrap">
+          <Search size={15} className="finance-search-icon" />
+          <input
+            className="finance-search-input"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={tab === 'approval' ? 'Cari ID, dapur, keperluan, pemohon...' : 'Cari transaksi, tanggal, keterangan...'}
+          />
+        </div>
+
+        {tab === 'approval' ? (
+          <>
+            <select
+              className="finance-control"
+              value={approvalStatusFilter}
+              onChange={(event) => setApprovalStatusFilter(event.target.value as ApprovalStatus | 'all')}
+            >
+              <option value="all">Semua Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select
+              className="finance-control"
+              value={approvalSortKey}
+              onChange={(event) => setApprovalSortKey(event.target.value as ApprovalSortKey)}
+            >
+              <option value="requestedAt">Urut Tanggal</option>
+              <option value="nominal">Urut Nominal</option>
+              <option value="status">Urut Status</option>
+              <option value="kitchenName">Urut Dapur</option>
+            </select>
+            <button className="finance-sort-toggle" onClick={() => setApprovalSortDir((value) => value === 'asc' ? 'desc' : 'asc')}>
+              {approvalSortDir === 'asc' ? 'Naik' : 'Turun'}
+            </button>
+          </>
+        ) : (
+          <>
+            <select
+              className="finance-control"
+              value={transactionSortKey}
+              onChange={(event) => setTransactionSortKey(event.target.value as TransactionSortKey)}
+            >
+              <option value="tanggal">Urut Tanggal</option>
+              <option value="nominal">Urut Nominal</option>
+              <option value="type">Urut Tipe</option>
+            </select>
+            <button className="finance-sort-toggle" onClick={() => setTransactionSortDir((value) => value === 'asc' ? 'desc' : 'asc')}>
+              {transactionSortDir === 'asc' ? 'Naik' : 'Turun'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {error && !loading && (
+        <div className="bento-card">
+          <ErrorState message={error} onRetry={() => fetchData(tab, filter)} compact />
+        </div>
+      )}
+
       {loading && (
         <div className="loading-state">
           <div className="spinner" />
@@ -289,7 +372,7 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
               <div>
                 <div className="section-title">Permintaan Dana Dapur</div>
                 <div className="section-subtitle">
-                  {approvals.filter(a => a.status === 'Pending').length} pending • {approvals.length} total
+                  {approvals.filter(a => a.status === 'Pending').length} pending - {filteredApprovals.length} ditampilkan dari {approvals.length} total
                 </div>
               </div>
             </div>
@@ -310,7 +393,14 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {approvals.map(a => (
+                  {approvalRows.length === 0 && (
+                    <tr>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                        Tidak ada approval yang cocok dengan filter saat ini.
+                      </td>
+                    </tr>
+                  )}
+                  {approvalRows.map(a => (
                     <tr key={a.id} className={a.status !== 'Pending' ? 'finance-row--decided' : ''}>
                       <td>
                         <span className="finance-id-tag">{a.id}</span>
@@ -372,6 +462,19 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
                 </tbody>
               </table>
             </div>
+            {filteredApprovals.length > APPROVAL_PAGE_SIZE && (
+              <div className="finance-pagination">
+                <span>Halaman {approvalPage} dari {approvalTotalPages}</span>
+                <div className="finance-pagination-actions">
+                  <button disabled={approvalPage === 1} onClick={() => setApprovalPage((page) => Math.max(1, page - 1))}>
+                    <ChevronLeft size={14} /> Prev
+                  </button>
+                  <button disabled={approvalPage === approvalTotalPages} onClick={() => setApprovalPage((page) => Math.min(approvalTotalPages, page + 1))}>
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}
@@ -491,7 +594,7 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
             <div className="section-header">
               <div>
                 <div className="section-title">Riwayat Transaksi</div>
-                <div className="section-subtitle">{cashflow.transactions.length} transaksi terbaru</div>
+                <div className="section-subtitle">{filteredTransactions.length} ditampilkan dari {cashflow.transactions.length} transaksi terbaru</div>
               </div>
             </div>
             <div className="module-table-wrap">
@@ -506,7 +609,14 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {cashflow.transactions.map(t => (
+                  {transactionRows.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                        Tidak ada transaksi yang cocok dengan filter saat ini.
+                      </td>
+                    </tr>
+                  )}
+                  {transactionRows.map(t => (
                     <tr key={t.id}>
                       <td><span className="finance-id-tag">{t.id}</span></td>
                       <td style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{t.tanggal}</td>
@@ -524,6 +634,19 @@ const FinancePage: React.FC<{ userRole?: string }> = ({ userRole }) => {
                 </tbody>
               </table>
             </div>
+            {filteredTransactions.length > TRANSACTION_PAGE_SIZE && (
+              <div className="finance-pagination">
+                <span>Halaman {transactionPage} dari {transactionTotalPages}</span>
+                <div className="finance-pagination-actions">
+                  <button disabled={transactionPage === 1} onClick={() => setTransactionPage((page) => Math.max(1, page - 1))}>
+                    <ChevronLeft size={14} /> Prev
+                  </button>
+                  <button disabled={transactionPage === transactionTotalPages} onClick={() => setTransactionPage((page) => Math.min(transactionTotalPages, page + 1))}>
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}

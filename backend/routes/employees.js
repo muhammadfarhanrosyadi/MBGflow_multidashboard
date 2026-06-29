@@ -369,4 +369,89 @@ router.get('/export', async (req, res) => {
   }
 });
 
+// ── GET /api/employees/dashboard — summary KPIs ───────────────────────────────
+router.get('/dashboard', async (req, res) => {
+  try {
+    const employees = await db('employees')
+      .join('kitchens', 'employees.kitchen_id', 'kitchens.id')
+      .select(
+        'employees.role',
+        'employees.status',
+        'employees.salary',
+        'employees.paid_this_month',
+        'employees.kitchen_id as kitchenId',
+        'kitchens.name as kitchenName',
+      );
+
+    const total       = employees.length;
+    const active      = employees.filter(e => e.status === 'Active').length;
+    const onLeave     = employees.filter(e => e.status === 'On Leave').length;
+    const budget      = employees.reduce((sum, e) => sum + Number(e.salary || 0), 0);
+    const paid        = employees.filter(e => e.paid_this_month).length;
+    const unpaid      = total - paid;
+
+    const byRole = {};
+    employees.forEach(e => { byRole[e.role] = (byRole[e.role] || 0) + 1; });
+
+    const kitchenMap = {};
+    employees.forEach(e => {
+      if (!kitchenMap[e.kitchenId]) kitchenMap[e.kitchenId] = { kitchenId: e.kitchenId, kitchenName: e.kitchenName, count: 0 };
+      kitchenMap[e.kitchenId].count++;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalEmployees:    total,
+        activeEmployees:   active,
+        onLeaveEmployees:  onLeave,
+        totalSalaryBudget: budget,
+        paidCount:         paid,
+        unpaidCount:       unpaid,
+        byRole,
+        byKitchen: Object.values(kitchenMap),
+      },
+    });
+  } catch (error) {
+    console.error('Employee dashboard error:', error);
+    res.status(500).json({ success: false, message: 'Gagal memuat dashboard karyawan.' });
+  }
+});
+
+// ── GET /api/employees/chef — chefs only ──────────────────────────────────────
+router.get('/chef', async (req, res) => {
+  try {
+    const chefs = await db('employees')
+      .join('kitchens', 'employees.kitchen_id', 'kitchens.id')
+      .where('employees.role', 'Juru Masak')
+      .select(
+        'employees.id', 'employees.name', 'employees.email', 'employees.role',
+        'employees.kitchen_id as kitchenId', 'kitchens.name as kitchenName',
+        'employees.salary', 'employees.status', 'employees.paid_this_month as paidThisMonth'
+      );
+    res.json({ success: true, data: chefs });
+  } catch (error) {
+    console.error('Chef list error:', error);
+    res.status(500).json({ success: false, message: 'Gagal memuat data juru masak.' });
+  }
+});
+
+// ── GET /api/employees/driver — drivers only ──────────────────────────────────
+router.get('/driver', async (req, res) => {
+  try {
+    const drivers = await db('employees')
+      .join('kitchens', 'employees.kitchen_id', 'kitchens.id')
+      .where('employees.role', 'Driver')
+      .select(
+        'employees.id', 'employees.name', 'employees.email', 'employees.role',
+        'employees.kitchen_id as kitchenId', 'kitchens.name as kitchenName',
+        'employees.salary', 'employees.status', 'employees.paid_this_month as paidThisMonth'
+      );
+    res.json({ success: true, data: drivers });
+  } catch (error) {
+    console.error('Driver list error:', error);
+    res.status(500).json({ success: false, message: 'Gagal memuat data driver.' });
+  }
+});
+
 module.exports = router;

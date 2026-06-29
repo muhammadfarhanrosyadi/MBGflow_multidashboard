@@ -120,9 +120,9 @@ export const MODULE_CONFIG: Record<ModuleName, ModuleConfig> = {
 // ── API Types ────────────────────────────────────────────────────────────────
 
 export interface AiHistoryRecord {
-  id: string;
+  id: string | number;
   kitchen_id: string | null;
-  kitchen_name: string;
+  kitchen_name: string | null;
   module_name: string;
   module_label: string | null;
   prediction_date: string;

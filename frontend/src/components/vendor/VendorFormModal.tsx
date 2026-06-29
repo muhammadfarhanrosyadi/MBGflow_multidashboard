@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Store } from 'lucide-react';
 import type { CreateVendorDTO } from '../../types';
-import { createVendor } from '../../services/vendorService';
+import { vendorApi } from '../../api';
 
 interface VendorFormModalProps {
   onClose: () => void;
@@ -31,7 +31,7 @@ const VendorFormModal: React.FC<VendorFormModalProps> = ({ onClose, onSuccess })
     setLoading(true);
     setServerError('');
     try {
-      await createVendor(form);
+      await vendorApi.create(form);
       onSuccess();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 'Gagal menyimpan vendor';

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Store, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import type { VendorStats } from '../../types';
-import { getVendorStats } from '../../services/vendorService';
+import { vendorApi } from '../../api';
 
 interface VendorDashboardWidgetProps {
   onNavigate?: (page: string) => void;
@@ -12,7 +12,7 @@ const VendorDashboardWidget: React.FC<VendorDashboardWidgetProps> = ({ onNavigat
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getVendorStats()
+    vendorApi.getStats()
       .then(setStats)
       .catch(() => setStats({ total: 0, pending: 0, approved: 0, rejected: 0 }))
       .finally(() => setLoading(false));

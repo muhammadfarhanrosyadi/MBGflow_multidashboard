@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import Layout from './components/Layout';
 import MasterDashboard from './components/MasterDashboard';
@@ -10,27 +10,30 @@ import VendorListPage from './pages/VendorListPage';
 import VendorApprovalPage from './pages/VendorApprovalPage';
 import VendorDetailPage from './pages/VendorDetailPage';
 
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { SkeletonPage } from './components/ui/SkeletonCard';
 
-// ── Module routing config ─────────────────────────────────────────────
+import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { ROUTES, USER_ALLOWED_ROUTES } from './constants/routes';
+
+// ── Module routing config ──────────────────────────────────────────────────────
 const MODULE_CONFIG: Record<string, { label: string; icon: string; apiKey: string }> = {
-  produksi: { label: 'Produksi & Multi Dapur', icon: '🍳', apiKey: 'produksi' },
-  'bahan-baku': { label: 'Bahan Baku & Pemasok', icon: '📦', apiKey: 'bahan-baku' },
-  'menu-planning': { label: 'Menu Planning & AI', icon: '🤖', apiKey: 'menu-planning' },
-  logistik: { label: 'Logistik & Distribusi', icon: '🚚', apiKey: 'logistik' },
-  tracking: { label: 'Mobile Distribution Tracking', icon: '📍', apiKey: 'tracking' },
+  [ROUTES.PRODUKSI]:      { label: 'Produksi & Multi Dapur',         icon: '🍳', apiKey: 'produksi' },
+  [ROUTES.BAHAN_BAKU]:    { label: 'Bahan Baku & Pemasok',           icon: '📦', apiKey: 'bahan-baku' },
+  [ROUTES.MENU_PLANNING]: { label: 'Menu Planning & AI',             icon: '🤖', apiKey: 'menu-planning' },
+  [ROUTES.LOGISTIK]:      { label: 'Logistik & Distribusi',          icon: '🚚', apiKey: 'logistik' },
+  [ROUTES.TRACKING]:      { label: 'Mobile Distribution Tracking',   icon: '📍', apiKey: 'tracking' },
 };
 
-// ── Decorative background blobs ────────────────────────────────────────
+// ── Decorative background blobs ───────────────────────────────────────────────
 const BgBlobs: React.FC = () => (
   <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-    {/* Top-left blob */}
     <div style={{
       position: 'absolute', top: '-80px', left: '-80px',
       width: 400, height: 400, borderRadius: '50%',
       background: 'radial-gradient(circle, rgba(27,107,69,0.12) 0%, transparent 70%)',
     }} />
-    {/* Bottom-right blob */}
     <div style={{
       position: 'absolute', bottom: '-100px', right: '-60px',
       width: 480, height: 480, borderRadius: '50%',
@@ -39,98 +42,67 @@ const BgBlobs: React.FC = () => (
   </div>
 );
 
-// ── Login Screen ──────────────────────────────────────────────────────
-const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: string) => void }> = ({ onLogin }) => {
-  const [creds, setCreds] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
+// ── Login Screen — now uses AuthContext ────────────────────────────────────────
+const LoginScreen: React.FC = () => {
+  const { login } = useAuth();
+  const [creds,   setCreds]  = useState({ username: '', password: '' });
+  const [error,   setError]  = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
+  const [showPw,  setShowPw] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(creds),
-      });
-      const data = await res.json();
-      if (data.success) {
-        onLogin(data.user.username, data.token, data.user.role);
-      } else {
-        setError(data.message || 'Username atau password salah.');
-      }
-    } catch (err) {
-      setError('Terjadi kesalahan jaringan.');
+      await login(creds.username, creds.password);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login gagal.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      background: 'var(--bg-primary)',
-      position: 'relative',
-    }}>
+    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg-primary)', position: 'relative' }}>
       <BgBlobs />
 
       {/* Left panel — decorative */}
       <div style={{
         flex: '0 0 45%',
         background: 'linear-gradient(145deg, #1B6B45 0%, #145535 40%, #0E3D28 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '3rem',
-        position: 'relative',
-        overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        padding: '3rem', position: 'relative', overflow: 'hidden',
       }}>
-        {/* Pattern overlay */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }} />
 
-        {/* Logo */}
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{
             width: 52, height: 52,
-            background: 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 16,
+            background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.2)', borderRadius: 16,
             display: 'grid', placeItems: 'center',
-            fontSize: 22, fontWeight: 900, color: '#fff',
-            marginBottom: 16,
+            fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 16,
           }}>M</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
-            SCM Master Admin
-          </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
-            Platform Supply Chain Management MBG
-          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>SCM Master Admin</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>Platform Supply Chain Management MBG</div>
         </div>
 
-        {/* Features list */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {[
-            { icon: '📊', title: 'Dashboard Global', desc: 'Pantau KPI dan tren SCM secara real-time' },
-            { icon: '🤖', title: 'AI Analyst', desc: 'Insight cerdas berbasis Gemini AI' },
+            { icon: '📊', title: 'Dashboard Global',   desc: 'Pantau KPI dan tren SCM secara real-time' },
+            { icon: '🤖', title: 'AI Analyst',          desc: 'Insight cerdas berbasis Gemini AI' },
             { icon: '🚚', title: 'Logistik & Tracking', desc: 'Distribusi dan mobile tracking terintegrasi' },
           ].map(f => (
             <div key={f.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
               <div style={{
                 width: 40, height: 40,
-                background: 'rgba(255,255,255,0.12)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: 12,
-                display: 'grid', placeItems: 'center',
-                fontSize: 16, flexShrink: 0,
+                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 12, display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0,
               }}>{f.icon}</div>
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{f.title}</div>
@@ -140,24 +112,17 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
           ))}
         </div>
 
-        {/* Footer */}
         <div style={{ position: 'relative', zIndex: 1, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
           Platform SCM MBG © 2026
         </div>
       </div>
 
-      {/* Right panel — login form */}
+      {/* Right panel — form */}
       <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        position: 'relative',
-        zIndex: 1,
+        flex: 1, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: '2rem', position: 'relative', zIndex: 1,
       }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
-          {/* Header */}
           <div style={{ marginBottom: 36 }}>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
               Selamat datang kembali 👋
@@ -168,7 +133,6 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Username */}
             <div>
               <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 7 }}>
                 Username
@@ -179,30 +143,19 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
                 onChange={e => setCreds({ ...creds, username: e.target.value })}
                 placeholder="Masukkan username"
                 disabled={loading}
+                autoComplete="username"
                 style={{
-                  width: '100%',
-                  padding: '11px 16px',
-                  background: 'var(--bg-surface)',
-                  border: '1.5px solid var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--text-primary)',
-                  fontSize: 14,
-                  outline: 'none',
+                  width: '100%', padding: '11px 16px',
+                  background: 'var(--bg-surface)', border: '1.5px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)', color: 'var(--text-primary)',
+                  fontSize: 14, outline: 'none', fontFamily: 'inherit',
                   transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
-                  fontFamily: 'inherit',
                 }}
-                onFocus={e => {
-                  e.target.style.borderColor = 'var(--accent-primary)';
-                  e.target.style.boxShadow = '0 0 0 3px var(--accent-primary-dim)';
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = 'var(--border-default)';
-                  e.target.style.boxShadow = 'none';
-                }}
+                onFocus={e => { e.target.style.borderColor = 'var(--accent-primary)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-primary-dim)'; }}
+                onBlur={e =>  { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
-            {/* Password */}
             <div>
               <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 7 }}>
                 Password
@@ -214,26 +167,16 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
                   onChange={e => setCreds({ ...creds, password: e.target.value })}
                   placeholder="Masukkan password"
                   disabled={loading}
+                  autoComplete="current-password"
                   style={{
-                    width: '100%',
-                    padding: '11px 44px 11px 16px',
-                    background: 'var(--bg-surface)',
-                    border: '1.5px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-primary)',
-                    fontSize: 14,
-                    outline: 'none',
+                    width: '100%', padding: '11px 44px 11px 16px',
+                    background: 'var(--bg-surface)', border: '1.5px solid var(--border-default)',
+                    borderRadius: 'var(--radius-md)', color: 'var(--text-primary)',
+                    fontSize: 14, outline: 'none', fontFamily: 'inherit',
                     transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
-                    fontFamily: 'inherit',
                   }}
-                  onFocus={e => {
-                    e.target.style.borderColor = 'var(--accent-primary)';
-                    e.target.style.boxShadow = '0 0 0 3px var(--accent-primary-dim)';
-                  }}
-                  onBlur={e => {
-                    e.target.style.borderColor = 'var(--border-default)';
-                    e.target.style.boxShadow = 'none';
-                  }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--accent-primary)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-primary-dim)'; }}
+                  onBlur={e =>  { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                 />
                 <button
                   type="button"
@@ -243,48 +186,36 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
                     background: 'none', border: 'none', cursor: 'pointer',
                     color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
                   }}
+                  aria-label={showPw ? 'Sembunyikan password' : 'Tampilkan password'}
                 >
                   {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div style={{
                 padding: '10px 14px',
-                background: 'var(--color-danger-dim)',
-                border: '1px solid var(--color-danger)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--color-danger)',
-                fontSize: 13,
+                background: 'var(--color-danger-dim)', border: '1px solid var(--color-danger)',
+                borderRadius: 'var(--radius-md)', color: 'var(--color-danger)', fontSize: 13,
               }}>
                 {error}
               </div>
             )}
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
               style={{
-                width: '100%',
-                padding: '12px',
+                width: '100%', padding: '12px',
                 background: loading ? 'var(--bg-interactive)' : 'var(--accent-primary)',
                 color: loading ? 'var(--text-muted)' : '#fff',
-                fontWeight: 700,
-                fontSize: 14.5,
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                marginTop: 4,
-                transition: 'all var(--transition-normal)',
+                fontWeight: 700, fontSize: 14.5, border: 'none',
+                borderRadius: 'var(--radius-md)', cursor: loading ? 'not-allowed' : 'pointer',
+                marginTop: 4, transition: 'all var(--transition-normal)',
                 boxShadow: loading ? 'none' : 'var(--shadow-glow-green)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, fontFamily: 'inherit',
               }}
             >
               {loading ? (
@@ -293,8 +224,7 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
                     width: 16, height: 16,
                     border: '2px solid rgba(255,255,255,0.3)',
                     borderTop: '2px solid var(--text-muted)',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite',
+                    borderRadius: '50%', animation: 'spin 0.8s linear infinite',
                   }} />
                   Memverifikasi...
                 </>
@@ -307,23 +237,17 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
             </button>
           </form>
 
-          {/* Demo hint */}
           <div style={{
-            marginTop: 28,
-            padding: '14px 18px',
-            background: 'var(--accent-light)',
-            border: '1px solid rgba(27,107,69,0.15)',
+            marginTop: 28, padding: '14px 18px',
+            background: 'var(--accent-light)', border: '1px solid rgba(27,107,69,0.15)',
             borderRadius: 'var(--radius-md)',
           }}>
             <p style={{ fontSize: 11.5, color: 'var(--accent-primary)', fontWeight: 600, marginBottom: 4 }}>
               Demo Credentials
             </p>
             <code style={{
-              display: 'block',
-              fontSize: 13,
-              color: 'var(--accent-active)',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
+              display: 'block', fontSize: 13, color: 'var(--accent-active)',
+              fontFamily: 'var(--font-mono)', fontWeight: 600,
             }}>
               Premium: admin / admin123<br />
               Biasa: user / user123
@@ -335,84 +259,51 @@ const LoginScreen: React.FC<{ onLogin: (name: string, token: string, role: strin
   );
 };
 
-// ── App Root ──────────────────────────────────────────────────────────
-export default function App() {
-  const [adminName, setAdminName] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('user');
-  const [activeMenu, setActiveMenu] = useState('dashboard');
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+// ── Inner App — reads from AuthContext ────────────────────────────────────────
+const AppInner: React.FC = () => {
+  const { user, isAuthenticated, isCheckingAuth, logout } = useAuth();
+  const [activeMenu, setActiveMenu] = useState<string>(ROUTES.DASHBOARD);
 
-  // Persist login & check token
-  useEffect(() => {
-    const token = localStorage.getItem('scm_token');
-    if (!token) {
-      setIsCheckingAuth(false);
-      return;
-    }
+  // Show full-page loader while checking persisted session
+  if (isCheckingAuth) return <SkeletonPage label="Memverifikasi sesi..." />;
 
-    fetch('http://localhost:5000/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          setAdminName(data.user.username);
-          setUserRole(data.user.role);
-          if (data.user.role === 'user') setActiveMenu('karyawan');
-        } else {
-          handleLogout();
-        }
-      })
-      .catch(() => handleLogout())
-      .finally(() => setIsCheckingAuth(false));
-  }, []);
+  // Not logged in → show login screen
+  if (!isAuthenticated || !user) return <LoginScreen />;
 
-  const handleLogin = (name: string, token: string, role: string) => {
-    localStorage.setItem('scm_token', token);
-    setAdminName(name);
-    setUserRole(role);
-    setActiveMenu(role === 'user' ? 'karyawan' : 'dashboard');
-  };
+  const userRole = user.role;
 
-  const handleLogout = () => {
-    localStorage.removeItem('scm_token');
-    setAdminName(null);
-    setUserRole('user');
-    setActiveMenu('dashboard');
-  };
-
-  if (isCheckingAuth) return null; // Or a loading spinner
-  if (!adminName) return <LoginScreen onLogin={handleLogin} />;
-
-  // Render active page content
   const renderPage = () => {
-    if (userRole === 'user' && !['karyawan', 'keuangan', 'ai-history'].includes(activeMenu)) {
+    // Access guard for non-premium (user) role
+    if (userRole === 'user' && !USER_ALLOWED_ROUTES.includes(activeMenu as typeof USER_ALLOWED_ROUTES[number])) {
       return (
-        <div style={{ padding: 40, textAlign: 'center' }}>
-          <h2>Akses Terkunci</h2>
-          <p>Fitur ini khusus untuk langganan Premium.</p>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', minHeight: '40vh', gap: '1rem', textAlign: 'center',
+        }}>
+          <span style={{ fontSize: 40 }}>🔒</span>
+          <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Akses Terkunci</h2>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>Fitur ini khusus untuk langganan Premium.</p>
         </div>
       );
     }
 
-    if (activeMenu === 'dashboard')      return <MasterDashboard onNavigate={setActiveMenu} />;
-    if (activeMenu === 'keuangan')       return <FinancePage userRole={userRole} />;
-    if (activeMenu === 'karyawan')       return <EmployeePage />;
-    if (activeMenu === 'ai-history')     return <UniversalAiHistoryPage />;
-    if (activeMenu === 'vendors')        return <VendorListPage userRole={userRole} onNavigate={setActiveMenu} />;
-    if (activeMenu === 'vendors-approval') return <VendorApprovalPage userRole={userRole} onNavigate={setActiveMenu} />;
+    if (activeMenu === ROUTES.DASHBOARD)        return <MasterDashboard onNavigate={setActiveMenu} />;
+    if (activeMenu === ROUTES.KEUANGAN)         return <FinancePage userRole={userRole} />;
+    if (activeMenu === ROUTES.KARYAWAN)         return <EmployeePage />;
+    if (activeMenu === ROUTES.AI_HISTORY)       return <UniversalAiHistoryPage />;
+    if (activeMenu === ROUTES.VENDORS)          return <VendorListPage userRole={userRole} onNavigate={setActiveMenu} />;
+    if (activeMenu === ROUTES.VENDORS_APPROVAL) return <VendorApprovalPage userRole={userRole} onNavigate={setActiveMenu} />;
 
-    // Vendor detail page: format 'vendors-detail-{id}'
+    // Vendor detail: 'vendors-detail-{id}'
     if (activeMenu.startsWith('vendors-detail-')) {
       const vendorId = parseInt(activeMenu.replace('vendors-detail-', ''), 10);
       if (!isNaN(vendorId)) {
-        return <VendorDetailPage vendorId={vendorId} userRole={userRole} onBack={() => setActiveMenu('vendors')} />;
+        return <VendorDetailPage vendorId={vendorId} userRole={userRole} onBack={() => setActiveMenu(ROUTES.VENDORS)} />;
       }
     }
 
-
     const mod = MODULE_CONFIG[activeMenu];
-    if (!mod) return <p style={{ color: 'var(--text-muted)' }}>Halaman tidak ditemukan.</p>;
+    if (!mod) return <p style={{ color: 'var(--text-muted)', padding: 40 }}>Halaman tidak ditemukan.</p>;
 
     return (
       <ModulePage
@@ -428,12 +319,23 @@ export default function App() {
       <Layout
         activeMenu={activeMenu}
         onMenuChange={setActiveMenu}
-        onLogout={handleLogout}
-        adminName={adminName}
+        onLogout={logout}
+        adminName={user.name ?? user.username}
         userRole={userRole}
       >
         {renderPage()}
       </Layout>
     </div>
+  );
+};
+
+// ── App Root — wraps everything with Providers ─────────────────────────────────
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <AppInner />
+      </ToastProvider>
+    </AuthProvider>
   );
 }

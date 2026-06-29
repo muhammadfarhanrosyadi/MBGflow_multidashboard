@@ -398,3 +398,125 @@
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+.finance-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+.finance-search-wrap {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.finance-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.finance-search-input,
+.finance-control {
+  height: 36px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.finance-search-input {
+  width: 100%;
+  padding: 0 12px 0 34px;
+}
+
+.finance-control {
+  padding: 0 12px;
+}
+
+.finance-search-input:focus,
+.finance-control:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-dim);
+}
+
+.finance-sort-toggle {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  background: var(--bg-soft);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finance-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.finance-pagination-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.finance-pagination-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finance-pagination-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .finance-toolbar,
+  .finance-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-search-wrap {
+    max-width: none;
+    width: 100%;
+  }
+
+  .finance-control,
+  .finance-sort-toggle,
+  .finance-pagination-actions button {
+    width: 100%;
+  }
+}

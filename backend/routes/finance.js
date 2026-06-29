@@ -478,5 +478,38 @@ router.get('/export', async (req, res) => {
   }
 });
 
-module.exports = router;
+// ── GET /api/finance/dashboard — dashboard KPI summary ────────────────────────
+router.get('/dashboard', async (req, res) => {
+  try {
+    const [cashflowRows] = await db.raw(`
+      SELECT
+        COALESCE(SUM(CASE WHEN type = 'in'  THEN amount ELSE 0 END), 0) AS totalIn,
+        COALESCE(SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END), 0) AS totalOut
+      FROM cashflow_transactions
+      WHERE MONTH(transaction_date) = MONTH(CURDATE())
+        AND YEAR(transaction_date)  = YEAR(CURDATE())
+    `);
 
+    const totalIn   = Number(cashflowRows[0]?.totalIn  || 0);
+    const totalOut  = Number(cashflowRows[0]?.totalOut || 0);
+    const balance   = totalIn - totalOut;
+
+    const pendingRows = await db('finance_requests')
+      .where('status', 'pending')
+      .select(db.raw('COUNT(*) as count, COALESCE(SUM(amount), 0) as amount'));
+
+    const pendingApprovals = Number(pendingRows[0]?.count  || 0);
+    const pendingAmount    = Number(pendingRows[0]?.amount || 0);
+
+    res.json({
+      success: true,
+      data: { totalIn, totalOut, balance, pendingApprovals, pendingAmount },
+      message: 'Finance dashboard OK',
+    });
+  } catch (error) {
+    console.error('Finance dashboard error:', error);
+    res.status(500).json({ success: false, message: 'Gagal memuat dashboard keuangan.' });
+  }
+});
+
+module.exports = router;

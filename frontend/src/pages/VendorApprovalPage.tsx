@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardCheck, CheckCircle, XCircle, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
 import type { Vendor } from '../types';
-import { getPendingVendors, approveVendor, rejectVendor } from '../services/vendorService';
+import { vendorApi } from '../api';
 import VendorStatusBadge from '../components/vendor/VendorStatusBadge';
 import RejectModal from '../components/vendor/RejectModal';
 
@@ -21,7 +21,7 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
 
   const fetchPending = async () => {
     setLoading(true);
-    try { setVendors(await getPendingVendors()); }
+    try { setVendors(await vendorApi.getPending()); }
     catch { setVendors([]); }
     finally { setLoading(false); }
   };
@@ -37,7 +37,7 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
   const handleApprove = async (v: Vendor) => {
     setActionLoadingId(v.id);
     try {
-      await approveVendor(v.id, {});
+      await vendorApi.approve(v.id, {});
       setVendors(prev => prev.filter(x => x.id !== v.id));
       toast(`✅ ${v.name} berhasil disetujui`);
     } catch {
@@ -49,7 +49,7 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
 
   const handleReject = async (reason: string, notes: string) => {
     if (!rejectTarget) return;
-    await rejectVendor(rejectTarget.id, { reason, notes });
+    await vendorApi.reject(rejectTarget.id, { reason, notes });
     setVendors(prev => prev.filter(x => x.id !== rejectTarget.id));
     toast(`Vendor ${rejectTarget.name} ditolak.`);
     setRejectTarget(null);

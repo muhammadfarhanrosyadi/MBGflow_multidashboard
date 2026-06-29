@@ -1,12 +1,20 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { ChevronDown, Users, Filter, UserPlus, MoreVertical, Pencil, DollarSign, UserX, X, AlertTriangle, Download } from 'lucide-react';
 import type { Employee, EmployeeRole, EmployeeStatus, KitchenGrouped } from '../types/finance-employee';
-import { KITCHEN_OPTIONS, DEFAULT_SALARIES } from '../types/finance-employee';
+import { DEFAULT_SALARIES, type KitchenOption } from '../types/finance-employee';
+const KITCHEN_OPTIONS: KitchenOption[] = [
+  { id: 'K01', name: 'Dapur Pusat' },
+  { id: 'K02', name: 'Dapur Cabang 1' },
+];
 import ReportFilterBar from '../components/ReportFilterBar';
 import type { ReportFilter } from '../types';
+import { employeeApi } from '../api';
+import { useApi } from '../hooks/useApi';
+import { useToast } from '../contexts/ToastContext';
 import '../styles/employee.css';
 
-const API = 'http://localhost:5000/api/employees';
+// Remove the old API constant
+// const API = 'http://localhost:5000/api/employees';
 const ROLE_CONFIG: Record<EmployeeRole, { label: string; className: string; emoji: string }> = {
   'Ahli Gizi':  { label: 'Ahli Gizi',  className: 'emp-role--gizi',   emoji: '🧪' },
   'Driver':     { label: 'Driver',      className: 'emp-role--driver', emoji: '🚗' },
@@ -28,8 +36,8 @@ const AddModal: React.FC<{ onClose: () => void; onSaved: () => void }> = ({ onCl
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      if ((await r.json()).success) { onSaved(); onClose(); }
+      await employeeApi.create(form as any);
+      onSaved(); onClose();
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -76,8 +84,8 @@ const EditModal: React.FC<{ emp: Employee; onClose: () => void; onSaved: () => v
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const r = await fetch(`${API}/${emp.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      if ((await r.json()).success) { onSaved(); onClose(); }
+      await employeeApi.update(emp.id, form as any);
+      onSaved(); onClose();
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
@@ -96,7 +104,7 @@ const EditModal: React.FC<{ emp: Employee; onClose: () => void; onSaved: () => v
           </label>
           <label className="emp-form-label">Penempatan Dapur
             <select className="emp-form-input" value={form.kitchenId} onChange={e => set('kitchenId', e.target.value)}>
-              {KITCHEN_OPTIONS.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+              {KITCHEN_OPTIONS.map((k: KitchenOption) => <option key={k.id} value={k.id}>{k.name}</option>)}
             </select>
           </label>
           <label className="emp-form-label">Gaji Pokok
@@ -135,7 +143,6 @@ const ConfirmDialog: React.FC<{ title: string; message: string; confirmLabel: st
 // ═══════════════════════════════════════════════════════════════════════
 const EmployeePage: React.FC = () => {
   const [kitchens, setKitchens] = useState<KitchenGrouped[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedKitchen, setSelectedKitchen] = useState<string>('all');
   const [activeRoleFilter, setActiveRoleFilter] = useState<EmployeeRole | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -144,28 +151,26 @@ const EmployeePage: React.FC = () => {
   const [confirmAction, setConfirmAction] = useState<{ type: 'pay' | 'fire'; emp: Employee } | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [actionMenuPos, setActionMenuPos] = useState<{ top: number; right: number } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReportFilter>({ reportType: '', startDate: '', endDate: '' });
   const [exporting, setExporting] = useState<string | null>(null);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
-  const refresh = () => setRefreshKey(k => k + 1);
+  const { toast } = useToast();
+  const showToast = (msg: string) => { 
+    if (msg.startsWith('❌')) toast.error('Error', msg.replace('❌ ', ''));
+    else if (msg.startsWith('⚠️')) toast.warning('Peringatan', msg.replace('⚠️ ', ''));
+    else toast.success('Berhasil', msg.replace('✅ ', ''));
+  };
 
   // Fetch
-  useEffect(() => {
-    setLoading(true);
-    const q = new URLSearchParams();
-    if (filter.reportType) q.append('reportType', filter.reportType);
-    if (filter.startDate) q.append('startDate', filter.startDate);
-    if (filter.endDate) q.append('endDate', filter.endDate);
+  const { data, isLoading: loading, refetch: refresh } = useApi(
+    () => employeeApi.getByKitchen('all', { filter }).then(res => res.data),
+    [filter],
+    { immediate: true }
+  );
 
-    fetch(`${API}/kitchen/all?${q.toString()}`)
-      .then(r => r.json())
-      .then(json => { if (json.success) setKitchens(json.data); })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
-  }, [refreshKey, filter]);
+  useEffect(() => {
+    if (data) setKitchens(data as any);
+  }, [data]);
 
   // Close dropdown/action menu on outside click
   useEffect(() => {
@@ -193,21 +198,18 @@ const EmployeePage: React.FC = () => {
   // Pay salary
   const handlePay = useCallback(async (emp: Employee) => {
     try {
-      const r = await fetch(`${API}/${emp.id}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      const json = await r.json();
-      if (json.success) { showToast(`✅ Gaji ${emp.name} berhasil dibayarkan!`); refresh(); }
-      else showToast(`❌ ${json.error}`);
-    } catch { showToast('❌ Gagal membayar gaji.'); }
+      await employeeApi.markPaid(emp.id);
+      showToast(`✅ Gaji ${emp.name} berhasil dibayarkan!`); refresh();
+    } catch (err: any) { showToast(`❌ ${err.message || 'Gagal membayar gaji.'}`); }
     setConfirmAction(null);
   }, []);
 
   // Fire / Offboard
   const handleFire = useCallback(async (emp: Employee) => {
     try {
-      const r = await fetch(`${API}/${emp.id}`, { method: 'DELETE' });
-      const json = await r.json();
-      if (json.success) { showToast(`⚠️ ${emp.name} telah di-offboard.`); refresh(); }
-    } catch { showToast('❌ Gagal melakukan offboard.'); }
+      await employeeApi.remove(emp.id);
+      showToast(`⚠️ ${emp.name} telah di-offboard.`); refresh();
+    } catch (err: any) { showToast(`❌ ${err.message || 'Gagal melakukan offboard.'}`); }
     setConfirmAction(null);
   }, []);
 
@@ -220,22 +222,7 @@ const EmployeePage: React.FC = () => {
   const handleExport = async (format: 'xlsx' | 'pdf') => {
     setExporting(format);
     try {
-      const q = new URLSearchParams({ format });
-      if (filter.reportType) q.append('reportType', filter.reportType);
-      if (filter.startDate) q.append('startDate', filter.startDate);
-      if (filter.endDate) q.append('endDate', filter.endDate);
-
-      const res = await fetch(`${API}/export?${q.toString()}`);
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Karyawan_${new Date().toISOString().slice(0, 10)}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await employeeApi.exportData(format, filter);
     } catch (err) {
       console.error(err);
       showToast('❌ Gagal mengekspor data.');
@@ -255,8 +242,7 @@ const EmployeePage: React.FC = () => {
 
   return (
     <div className="employee-page">
-      {/* TOAST */}
-      {toast && <div className="emp-toast animate-fade-up">{toast}</div>}
+      {/* TOAST (Rendered globally) */}
 
       {/* HEADER */}
       <div className="emp-header">

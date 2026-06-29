@@ -1,5 +1,20 @@
-// Types untuk aplikasi SCM Master Admin
+/**
+ * src/types/index.ts
+ * Shared type definitions for the SCM Master Admin application.
+ * Single source of truth — no duplicate types across files.
+ */
 
+// ── Generic API Response wrapper ───────────────────────────────────────────────
+export interface ApiMeta {
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  pending?: number;
+  generatedAt?: string;
+  [key: string]: unknown;
+}
+
+// ── Dashboard types ────────────────────────────────────────────────────────────
 export interface KPICard {
   id: string;
   title: string;
@@ -33,15 +48,20 @@ export interface MenuItemType {
 }
 
 export interface AdminUser {
+  id?: number;
   name: string;
+  username?: string;
   role: string;
   avatar?: string;
 }
 
+// ── Approval Status (canonical — used by both Vendor and Finance) ──────────────
+/** Lowercase form used in API responses from the database */
+export type ApprovalStatusDB  = 'pending' | 'approved' | 'rejected';
+/** Display form used in the UI */
+export type ApprovalStatus    = 'Pending' | 'Approved' | 'Rejected';
+
 // ── Vendor / Supplier Types ───────────────────────────────────────────────────
-
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-
 export interface Vendor {
   id: number;
   name: string;
@@ -49,7 +69,7 @@ export interface Vendor {
   phone: string | null;
   email: string;
   address: string | null;
-  approval_status: ApprovalStatus;
+  approval_status: ApprovalStatusDB;
   approved_by: number | null;
   approved_at: string | null;
   rejection_reason: string | null;
@@ -61,8 +81,8 @@ export interface Vendor {
 export interface VendorApprovalLog {
   id: number;
   action: string;
-  old_status: ApprovalStatus | null;
-  new_status: ApprovalStatus | null;
+  old_status: ApprovalStatusDB | null;
+  new_status: ApprovalStatusDB | null;
   notes: string | null;
   created_at: string;
   actor_name: string | null;
@@ -101,7 +121,6 @@ export interface RejectVendorDTO {
 }
 
 // ── Report Filter Types ───────────────────────────────────────────────────────
-
 export type ReportType = 'daily' | 'monthly' | 'yearly' | 'custom';
 
 export interface ReportFilter {
@@ -110,3 +129,10 @@ export interface ReportFilter {
   endDate: string;
 }
 
+// ── Kitchen ───────────────────────────────────────────────────────────────────
+export interface Kitchen {
+  id: string;
+  name: string;
+  city?: string;
+  status?: string;
+}

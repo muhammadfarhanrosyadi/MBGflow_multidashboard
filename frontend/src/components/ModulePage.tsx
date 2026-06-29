@@ -319,19 +319,7 @@ const ModulePage: React.FC<ModulePageProps> = ({ moduleName, moduleLabel, module
         </div>
       </div>
 
-      {/* ── Info Banner ──────────────────────────────────────────────── */}
-      <div className="module-alert">
-        <div className="module-alert-icon">
-          <Info size={18} color="#B45309" />
-        </div>
-        <div className="module-alert-body">
-          <strong>ON PROGRESS — {moduleLabel}</strong>
-          <p>
-            Integrasi data real modul {moduleLabel} sedang berlangsung.
-            Tampilan berikut menggunakan data simulasi agar alur Master Admin tetap berjalan.
-          </p>
-        </div>
-      </div>
+
 
       {/* ── Loading / Error ───────────────────────────────────────────── */}
       {loading && (

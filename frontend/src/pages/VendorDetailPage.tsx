@@ -4,9 +4,7 @@ import {
   Clock, User, MapPin, Phone, Mail, FileText, History,
 } from 'lucide-react';
 import type { Vendor, VendorApprovalLog } from '../types';
-import {
-  getVendorById, getVendorLogs, approveVendor, rejectVendor,
-} from '../services/vendorService';
+import { vendorApi } from '../api';
 import VendorStatusBadge from '../components/vendor/VendorStatusBadge';
 import RejectModal from '../components/vendor/RejectModal';
 
@@ -31,8 +29,8 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
     setLoading(true);
     try {
       const [v, l] = await Promise.all([
-        getVendorById(vendorId),
-        getVendorLogs(vendorId),
+        vendorApi.getById(vendorId),
+        vendorApi.getLogs(vendorId),
       ]);
       setVendor(v);
       setLogs(l);
@@ -49,9 +47,9 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
     if (!vendor) return;
     setApproving(true);
     try {
-      const updated = await approveVendor(vendor.id, { notes });
+      const updated = await vendorApi.approve(vendor.id, { notes });
       setVendor(updated);
-      setLogs(await getVendorLogs(vendor.id));
+      setLogs(await vendorApi.getLogs(vendor.id));
       setActionMsg('✅ Vendor berhasil disetujui!');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err: unknown) {
@@ -64,9 +62,9 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
 
   const handleReject = async (reason: string, rejectNotes: string) => {
     if (!vendor) return;
-    const updated = await rejectVendor(vendor.id, { reason, notes: rejectNotes });
+    const updated = await vendorApi.reject(vendor.id, { reason, notes: rejectNotes });
     setVendor(updated);
-    setLogs(await getVendorLogs(vendor.id));
+    setLogs(await vendorApi.getLogs(vendor.id));
     setActionMsg('Vendor berhasil ditolak.');
     setTimeout(() => setActionMsg(''), 3000);
   };

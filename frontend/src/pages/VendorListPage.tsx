@@ -9,9 +9,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import type { Vendor, ReportFilter } from '../types';
-import {
-  getVendors, exportVendors,
-} from '../services/vendorService';
+import { vendorApi } from '../api';
 import VendorStatusBadge from '../components/vendor/VendorStatusBadge';
 import ReportFilterBar from '../components/ReportFilterBar';
 import VendorFormModal from '../components/vendor/VendorFormModal';
@@ -43,11 +41,11 @@ const VendorListPage: React.FC<VendorListPageProps> = ({ userRole, onNavigate })
   const fetchVendors = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getVendors({
+      const res = await vendorApi.getAll({
         ...reportFilter,
         ...(statusFilter ? { approval_status: statusFilter } : {}),
       });
-      setVendors(data);
+      setVendors(res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -75,9 +73,15 @@ const VendorListPage: React.FC<VendorListPageProps> = ({ userRole, onNavigate })
     { name: 'Rejected', value: vendors.filter(v => v.approval_status === 'rejected').length },
   ].filter(d => d.value > 0);
 
-  const handleExport = async (fmt: 'xlsx' | 'pdf') => {
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
     setExporting(true);
-    try { await exportVendors(fmt, reportFilter); } catch (e) { console.error(e); } finally { setExporting(false); }
+    try {
+      await vendorApi.exportData(format, reportFilter);
+    } catch {
+      alert('Gagal mengunduh laporan.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleFormSuccess = () => { setShowForm(false); fetchVendors(); };
