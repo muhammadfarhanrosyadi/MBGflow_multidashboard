@@ -38,20 +38,14 @@ const VendorListPage: React.FC<VendorListPageProps> = ({ userRole, onNavigate })
 
   const canManage = !userRole || userRole === 'admin' || userRole === 'super_admin' || userRole === 'procurement';
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const fetchVendors = useCallback(async () => {
     setLoading(true);
     try {
-      /*
       const res = await vendorApi.getAll({
         ...reportFilter,
         ...(statusFilter ? { approval_status: statusFilter } : {}),
       });
       setVendors(res.data);
-      */
-      // [BYPASS] Set data kosong agar UI tidak crash
-      console.warn('[BYPASS] fetchVendors dilewati — API Vendor belum tersedia.');
-      setVendors([]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -79,16 +73,10 @@ const VendorListPage: React.FC<VendorListPageProps> = ({ userRole, onNavigate })
     { name: 'Rejected', value: vendors.filter(v => v.approval_status === 'rejected').length },
   ].filter(d => d.value > 0);
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
-  const handleExport = async (_format: 'xlsx' | 'pdf') => {
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
     setExporting(true);
     try {
-      /*
-      await vendorApi.exportData(_format, reportFilter);
-      */
-      // [BYPASS] Export dilewati
-      console.warn('[BYPASS] Export vendor dilewati — API Vendor belum tersedia.');
-      alert('Export belum tersedia. API Vendor belum di-deploy.');
+      await vendorApi.exportData(format, reportFilter);
     } catch {
       alert('Gagal mengunduh laporan.');
     } finally {

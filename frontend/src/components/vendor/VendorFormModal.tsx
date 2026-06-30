@@ -25,20 +25,14 @@ const VendorFormModal: React.FC<VendorFormModalProps> = ({ onClose, onSuccess })
     return Object.keys(e).length === 0;
   };
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
     setServerError('');
     try {
-      /*
       await vendorApi.create(form);
       onSuccess();
-      */
-      // [BYPASS] Create dilewati
-      console.warn('[BYPASS] vendorApi.create dilewati — API Vendor belum tersedia.');
-      setServerError('Fitur tambah vendor belum tersedia. API Vendor belum di-deploy.');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 'Gagal menyimpan vendor';
       setServerError(msg);

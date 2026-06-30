@@ -19,15 +19,9 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
 
   const canApprove = !userRole || userRole === 'master_admin' || userRole === 'admin' || userRole === 'super_admin' || userRole === 'procurement';
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const fetchPending = async () => {
     setLoading(true);
-    try {
-      // setVendors(await vendorApi.getPending());
-      // [BYPASS] Set data kosong agar UI tidak crash
-      console.warn('[BYPASS] fetchPending dilewati — API Vendor belum tersedia.');
-      setVendors([]);
-    }
+    try { setVendors(await vendorApi.getPending()); }
     catch { setVendors([]); }
     finally { setLoading(false); }
   };
@@ -40,18 +34,12 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   };
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const handleApprove = async (v: Vendor) => {
     setActionLoadingId(v.id);
     try {
-      /*
       await vendorApi.approve(v.id, {});
       setVendors(prev => prev.filter(x => x.id !== v.id));
       toast(`✅ ${v.name} berhasil disetujui`);
-      */
-      // [BYPASS] Approve dilewati
-      console.warn('[BYPASS] handleApprove dilewati — API Vendor belum tersedia.');
-      toast(`⚠️ Approve belum tersedia (API belum deploy)`, 'error');
     } catch {
       toast(`❌ Gagal menyetujui vendor`, 'error');
     } finally {
@@ -59,17 +47,11 @@ const VendorApprovalPage: React.FC<VendorApprovalPageProps> = ({ userRole, onNav
     }
   };
 
-  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
-  const handleReject = async (_reason: string, _notes: string) => {
+  const handleReject = async (reason: string, notes: string) => {
     if (!rejectTarget) return;
-    /*
-    await vendorApi.reject(rejectTarget.id, { reason: _reason, notes: _notes });
+    await vendorApi.reject(rejectTarget.id, { reason, notes });
     setVendors(prev => prev.filter(x => x.id !== rejectTarget.id));
     toast(`Vendor ${rejectTarget.name} ditolak.`);
-    */
-    // [BYPASS] Reject dilewati
-    console.warn('[BYPASS] handleReject dilewati — API Vendor belum tersedia.');
-    toast(`⚠️ Reject belum tersedia (API belum deploy)`, 'error');
     setRejectTarget(null);
   };
 
