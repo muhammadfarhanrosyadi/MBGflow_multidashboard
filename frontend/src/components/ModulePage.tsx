@@ -146,17 +146,20 @@ const AutoTable: React.FC<{ data: Record<string, unknown>[] }> = ({ data }) => {
 };
 
 // ── Export helper ─────────────────────────────────────────────────────
+// TODO: Uncomment saat API Modul (Produksi/Bahan Baku/Menu Planning/Logistik/Tracking) dari tim sudah deploy
 async function triggerExport(
-  moduleName: string,
-  format: 'xlsx' | 'pdf',
-  filter: ReportFilter
+  _moduleName: string,
+  _format: 'xlsx' | 'pdf',
+  _filter: ReportFilter
 ) {
-  const params = new URLSearchParams({ format });
-  if (filter.reportType) params.set('reportType', filter.reportType);
-  if (filter.startDate)  params.set('startDate',  filter.startDate);
-  if (filter.endDate)    params.set('endDate',    filter.endDate);
+  // TODO: Uncomment saat API Modul dari tim sudah deploy
+  /*
+  const params = new URLSearchParams({ format: _format });
+  if (_filter.reportType) params.set('reportType', _filter.reportType);
+  if (_filter.startDate)  params.set('startDate',  _filter.startDate);
+  if (_filter.endDate)    params.set('endDate',    _filter.endDate);
 
-  const url = `${BASE}/modules/${moduleName}/export?${params}`;
+  const url = `${BASE}/modules/${_moduleName}/export?${params}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Export gagal');
 
@@ -164,11 +167,14 @@ async function triggerExport(
   const blobUrl = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;
-  a.download = `${moduleName}_laporan.${format}`;
+  a.download = `${_moduleName}_laporan.${_format}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   window.URL.revokeObjectURL(blobUrl);
+  */
+  console.warn(`[BYPASS] Export ${_moduleName} dilewati — API belum tersedia.`);
+  alert('Export belum tersedia. API modul belum di-deploy.');
 }
 
 // ── Filter label helper ───────────────────────────────────────────────
@@ -190,15 +196,17 @@ const ModulePage: React.FC<ModulePageProps> = ({ moduleName, moduleLabel, module
   const [filter, setFilter]   = useState<ReportFilter>(EMPTY_FILTER);
   const [exporting, setExporting] = useState(false);
 
-  const fetchData = useCallback(async (f: ReportFilter) => {
+  // TODO: Uncomment saat API Modul (Produksi/Bahan Baku/Menu Planning/Logistik/Tracking) dari tim sudah deploy
+  const fetchData = useCallback(async (_f: ReportFilter) => {
     setLoading(true);
     setError('');
     setData(null);
 
+    /*
     const params = new URLSearchParams();
-    if (f.reportType) params.set('reportType', f.reportType);
-    if (f.startDate)  params.set('startDate',  f.startDate);
-    if (f.endDate)    params.set('endDate',    f.endDate);
+    if (_f.reportType) params.set('reportType', _f.reportType);
+    if (_f.startDate)  params.set('startDate',  _f.startDate);
+    if (_f.endDate)    params.set('endDate',    _f.endDate);
 
     const url = `${BASE}/modules/${moduleName}${params.toString() ? '?' + params : ''}`;
 
@@ -212,6 +220,12 @@ const ModulePage: React.FC<ModulePageProps> = ({ moduleName, moduleLabel, module
     } finally {
       setLoading(false);
     }
+    */
+
+    // [BYPASS] Set data kosong agar UI tidak crash
+    console.warn(`[BYPASS] fetchData ${moduleName} dilewati — API belum tersedia.`);
+    setData({ chartData: [], tableData: [], aiAnalysis: { summary: '', recommendations: [], confidenceScore: 0 } });
+    setLoading(false);
   }, [moduleName]);
 
   useEffect(() => { fetchData(filter); }, [moduleName]);

@@ -25,15 +25,22 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
 
   const canApprove = !userRole || userRole === 'admin' || userRole === 'super_admin' || userRole === 'procurement';
 
+  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const fetchData = async () => {
     setLoading(true);
     try {
+      /*
       const [v, l] = await Promise.all([
         vendorApi.getById(vendorId),
         vendorApi.getLogs(vendorId),
       ]);
       setVendor(v);
       setLogs(l);
+      */
+      // [BYPASS] Set data kosong agar UI tidak crash
+      console.warn('[BYPASS] fetchData vendor detail dilewati — API Vendor belum tersedia.');
+      setVendor(null);
+      setLogs([]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -43,14 +50,21 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
 
   useEffect(() => { fetchData(); }, [vendorId]);
 
+  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
   const handleApprove = async () => {
     if (!vendor) return;
     setApproving(true);
     try {
+      /*
       const updated = await vendorApi.approve(vendor.id, { notes });
       setVendor(updated);
       setLogs(await vendorApi.getLogs(vendor.id));
       setActionMsg('✅ Vendor berhasil disetujui!');
+      setTimeout(() => setActionMsg(''), 3000);
+      */
+      // [BYPASS] Approve dilewati
+      console.warn('[BYPASS] handleApprove dilewati — API Vendor belum tersedia.');
+      setActionMsg('⚠️ Approve belum tersedia (API belum deploy)');
       setTimeout(() => setActionMsg(''), 3000);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 'Gagal menyetujui vendor';
@@ -60,12 +74,19 @@ const VendorDetailPage: React.FC<VendorDetailPageProps> = ({ vendorId, userRole,
     }
   };
 
-  const handleReject = async (reason: string, rejectNotes: string) => {
+  // TODO: Uncomment saat API Bahan Baku & Pemasok (Vendor) dari tim sudah deploy
+  const handleReject = async (_reason: string, _rejectNotes: string) => {
     if (!vendor) return;
-    const updated = await vendorApi.reject(vendor.id, { reason, notes: rejectNotes });
+    /*
+    const updated = await vendorApi.reject(vendor.id, { reason: _reason, notes: _rejectNotes });
     setVendor(updated);
     setLogs(await vendorApi.getLogs(vendor.id));
     setActionMsg('Vendor berhasil ditolak.');
+    setTimeout(() => setActionMsg(''), 3000);
+    */
+    // [BYPASS] Reject dilewati
+    console.warn('[BYPASS] handleReject dilewati — API Vendor belum tersedia.');
+    setActionMsg('⚠️ Reject belum tersedia (API belum deploy)');
     setTimeout(() => setActionMsg(''), 3000);
   };
 

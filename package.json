@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "knex": "^3.2.10",
-    "lucide-react": "^1.11.0"
-  }
-}
