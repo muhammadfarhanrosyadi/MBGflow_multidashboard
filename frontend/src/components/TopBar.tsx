@@ -108,8 +108,9 @@ const TopBar: React.FC<TopBarProps> = ({ title, subtitle, onNavigate, adminName 
       return;
     }
     setSearchLoading(true);
-    fetch(`http://localhost:5000/api/search?q=${encodeURIComponent(debouncedQuery)}`)
-      .then(r => r.json())
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    fetch(`${baseUrl}/search?q=${encodeURIComponent(debouncedQuery)}`)
+      .then(res => res.json())
       .then(json => {
         if (json.success) {
           setSearchResults(json.results ?? []);
@@ -123,8 +124,9 @@ const TopBar: React.FC<TopBarProps> = ({ title, subtitle, onNavigate, adminName 
   // ── Fetch notifications ────────────────────────────────────────────
   const fetchNotifications = useCallback(() => {
     setNotifLoading(true);
-    fetch('http://localhost:5000/api/notifications')
-      .then(r => r.json())
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    fetch(`${baseUrl}/notifications`)
+      .then(res => res.json())
       .then(json => {
         if (json.success) {
           setNotifications(json.data ?? []);
